@@ -1967,6 +1967,14 @@ function renderEscala(data) {
        </div>`
     : '';
 
+  // Ordenar: WhatsApp primeiro, SalesSmartly depois (desempate alfabético)
+  disponiveis.sort((a, b) => {
+    const canalA = a.canal_hoje === 'Sales' ? 1 : 0;
+    const canalB = b.canal_hoje === 'Sales' ? 1 : 0;
+    if (canalA !== canalB) return canalA - canalB;
+    return (a.nome || '').localeCompare(b.nome || '');
+  });
+
   el.innerHTML = avisoIndisp + disponiveis.map((c, i) => {
     // ID do colaborador na linha (view pode retornar como "id" ou "colaborador_id")
     const cid = c.id || c.colaborador_id;
@@ -2753,6 +2761,14 @@ function renderVisao(escala, auloes, sabados, vips) {
     el.innerHTML = `<div class="error-msg" style="grid-column:1/-1">Nenhum colaborador disponível hoje.</div>`;
     return;
   }
+
+  // Ordenar: WhatsApp primeiro, SalesSmartly depois (desempate alfabético)
+  disponiveis.sort((a, b) => {
+    const canalA = a.canal_hoje === 'Sales' ? 1 : 0;
+    const canalB = b.canal_hoje === 'Sales' ? 1 : 0;
+    if (canalA !== canalB) return canalA - canalB;
+    return (a.nome || '').localeCompare(b.nome || '');
+  });
 
   el.innerHTML = disponiveis.map((c, i) => {
     const cid   = c.id || c.colaborador_id;
