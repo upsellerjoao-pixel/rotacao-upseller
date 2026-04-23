@@ -1911,16 +1911,54 @@ function aplicarSessao() {
 
   mostrarApp();
 
-  // Restaurar aba ANTES do loadAll para evitar flash da Visão Geral.
-  // Usamos setTimeout(0) para garantir que o restante do script
-  // (que declara let colabsAdmin, numerosAdmin, etc) já tenha executado.
-  setTimeout(() => restaurarUltimaPagina(), 0);
+  // Restauração da aba em dois passos para evitar flash:
+  // 1) Agora: ativar visualmente a aba/sub-aba (só troca de CSS, sem render)
+  // 2) Depois do loadAll: render real com dados carregados
+  setTimeout(() => ativarAbaVisualmente(), 0);
 
   // Solicitar permissão de notificação + iniciar Realtime
   if ('Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission();
   }
   setTimeout(iniciarRealtime, 500); // pequeno delay para garantir que loadAll já iniciou
+}
+
+// Ativa VISUALMENTE a aba salva (só CSS, sem chamar funções de render).
+// Usado antes do loadAll para evitar o flash da Visão Geral.
+function ativarAbaVisualmente() {
+  try {
+    const p = localStorage.getItem('upseller_last_page');
+    if (!p) return;
+    if (p === 'gestor' && !currentColaborador?.is_gestor) return;
+    if (!['visao','dashboard','gestor'].includes(p)) return;
+
+    // Trocar aba principal (só CSS)
+    document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+    const pageEl = document.getElementById('page-' + p);
+    if (pageEl) pageEl.classList.add('active');
+    document.querySelectorAll('.tab').forEach(el => {
+      const txt = el.textContent.toLowerCase();
+      if (p === 'visao' && txt.includes('visão')) el.classList.add('active');
+      else if (p === 'dashboard' && txt.includes('dash')) el.classList.add('active');
+      else if (p === 'gestor' && txt.includes('gestor')) el.classList.add('active');
+    });
+
+    // Se for Gestor, trocar sub-aba também (só CSS)
+    if (p === 'gestor') {
+      const subtab = localStorage.getItem('upseller_last_gestor_tab');
+      const validSubtabs = ['operacional','colaboradores','escala-semanal','rotacao-home','sabados','numeros','grupos','vips','treinamentos','auloes'];
+      if (subtab && validSubtabs.includes(subtab)) {
+        document.querySelectorAll('.gestor-subpage').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.gestor-subtab').forEach(el => el.classList.remove('active'));
+        const sp = document.getElementById('gestortab-' + subtab);
+        if (sp) sp.classList.add('active');
+        document.querySelectorAll('.gestor-subtab[data-tab]').forEach(el => {
+          if (el.dataset.tab === subtab) el.classList.add('active');
+        });
+      }
+    }
+  } catch(e) {}
 }
 
 function fazerLogout() {
@@ -3304,10 +3342,29 @@ async function loadAll() {
     renderSabados(sabados);
     renderTreinamentos(treinamentos);
     renderTreinamentosGestor();
+    sincTreinGestor2();
     renderRotacaoHome(rotHome);
     renderDisponibilidade();
     renderCanais();
     renderNumeros();
+
+    // Se o usuário estava numa sub-aba do Gestor antes do F5, chamar o
+    // render específico dela (com dados frescos já carregados do loadAll).
+    try {
+      const p = localStorage.getItem('upseller_last_page');
+      if (p === 'gestor' && currentColaborador?.is_gestor) {
+        const subtab = localStorage.getItem('upseller_last_gestor_tab');
+        if (subtab === 'colaboradores') renderAdminColabs();
+        else if (subtab === 'escala-semanal') { semanaOffset = 0; atualizarNavSemana(); renderEscalaSemanal(); }
+        else if (subtab === 'rotacao-home') renderAdminRotacaoHome();
+        else if (subtab === 'sabados') renderAdminSabados();
+        else if (subtab === 'numeros') renderAdminNumeros();
+        else if (subtab === 'grupos') renderAdminGrupos();
+        else if (subtab === 'vips') renderAdminVips();
+        else if (subtab === 'auloes') renderAdminAuloes();
+        // 'treinamentos' e 'operacional' já são renderizados pelos renders globais acima
+      }
+    } catch(e) { /* silencioso */ }
 
   } catch(err) {
     console.error('[loadAll] Erro:', err.message);
