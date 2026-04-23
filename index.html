@@ -1922,6 +1922,7 @@ function fazerLogout() {
   if (!confirm('Deseja sair da sua conta?')) return;
   pararRealtime();
   localStorage.removeItem('upseller_session');
+  localStorage.removeItem('upseller_last_page');
   currentColaborador = null;
   document.getElementById('login-email').value = '';
   document.getElementById('login-senha').value = '';
@@ -1945,6 +1946,20 @@ function showPage(p) {
     else if (p === 'dashboard' && txt.includes('dash')) el.classList.add('active');
     else if (p === 'gestor' && txt.includes('gestor')) el.classList.add('active');
   });
+  // Persiste aba ativa para sobreviver ao refresh
+  try { localStorage.setItem('upseller_last_page', p); } catch(e) {}
+}
+
+// Restaura a última aba ativa após o app carregar.
+// Chamado depois de aplicarSessao() + loadAll().
+function restaurarUltimaPagina() {
+  try {
+    const p = localStorage.getItem('upseller_last_page');
+    if (!p) return;
+    // Gestor só restaura se ainda for gestor (evita loop de alert)
+    if (p === 'gestor' && !currentColaborador?.is_gestor) return;
+    if (p === 'visao' || p === 'dashboard' || p === 'gestor') showPage(p);
+  } catch(e) {}
 }
 
 // ── RENDER ESCALA ────────────────────────────────────────
@@ -3277,6 +3292,9 @@ async function loadAll() {
     renderDisponibilidade();
     renderCanais();
     renderNumeros();
+
+    // Restaura a aba em que o usuário estava antes do refresh
+    restaurarUltimaPagina();
 
   } catch(err) {
     console.error('[loadAll] Erro:', err.message);
