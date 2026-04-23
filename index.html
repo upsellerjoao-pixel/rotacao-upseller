@@ -1911,6 +1911,11 @@ function aplicarSessao() {
 
   mostrarApp();
 
+  // Restaurar aba ANTES do loadAll para evitar flash da Visão Geral.
+  // Usamos setTimeout(0) para garantir que o restante do script
+  // (que declara let colabsAdmin, numerosAdmin, etc) já tenha executado.
+  setTimeout(() => restaurarUltimaPagina(), 0);
+
   // Solicitar permissão de notificação + iniciar Realtime
   if ('Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission();
@@ -1923,6 +1928,7 @@ function fazerLogout() {
   pararRealtime();
   localStorage.removeItem('upseller_session');
   localStorage.removeItem('upseller_last_page');
+  localStorage.removeItem('upseller_last_gestor_tab');
   currentColaborador = null;
   document.getElementById('login-email').value = '';
   document.getElementById('login-senha').value = '';
@@ -1958,7 +1964,17 @@ function restaurarUltimaPagina() {
     if (!p) return;
     // Gestor só restaura se ainda for gestor (evita loop de alert)
     if (p === 'gestor' && !currentColaborador?.is_gestor) return;
-    if (p === 'visao' || p === 'dashboard' || p === 'gestor') showPage(p);
+    if (p === 'visao' || p === 'dashboard' || p === 'gestor') {
+      showPage(p);
+      // Se estava no Gestor, restaura também a sub-aba específica
+      if (p === 'gestor') {
+        const subtab = localStorage.getItem('upseller_last_gestor_tab');
+        const validSubtabs = ['operacional','colaboradores','escala-semanal','rotacao-home','sabados','numeros','grupos','vips','treinamentos','auloes'];
+        if (subtab && validSubtabs.includes(subtab)) {
+          showGestorTab(subtab);
+        }
+      }
+    }
   } catch(e) {}
 }
 
@@ -3293,9 +3309,6 @@ async function loadAll() {
     renderCanais();
     renderNumeros();
 
-    // Restaura a aba em que o usuário estava antes do refresh
-    restaurarUltimaPagina();
-
   } catch(err) {
     console.error('[loadAll] Erro:', err.message);
     const el = document.getElementById('escala-container');
@@ -3711,6 +3724,8 @@ function showGestorTab(tab) {
   if (tab === 'vips') renderAdminVips();
   if (tab === 'treinamentos') { renderTreinamentosGestor(); sincTreinGestor2(); }
   if (tab === 'auloes') renderAdminAuloes();
+  // Persiste sub-aba para sobreviver ao refresh
+  try { localStorage.setItem('upseller_last_gestor_tab', tab); } catch(e) {}
 }
 
 function fecharModal(id) {
