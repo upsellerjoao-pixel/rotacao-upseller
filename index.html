@@ -1488,7 +1488,7 @@
     </div>
     <div style="display:flex;gap:20px;margin-bottom:16px;flex-wrap:wrap;">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--subtle);">
-        <input type="checkbox" id="colab-is-gestor" style="width:16px;height:16px;"> É gestor
+        <input type="checkbox" id="colab-is-gestor" onchange="atualizarVisibilidadePermissoes()" style="width:16px;height:16px;"> É gestor
       </label>
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--subtle);">
         <input type="checkbox" id="colab-ativo" checked style="width:16px;height:16px;"> Ativo (acesso ao sistema)
@@ -1500,6 +1500,36 @@
         <input type="checkbox" id="colab-faz-aulao" style="width:16px;height:16px;"> Faz aulão (entra na rotação de aulões)
       </label>
     </div>
+
+    <!-- SEÇÃO DE PERMISSÕES DO GESTOR — visível só pra super-gestor editando alguém marcado como gestor -->
+    <div id="colab-permissoes-section" style="display:none;margin-bottom:16px;padding:14px;background:rgba(59,130,246,0.05);border:1px solid rgba(59,130,246,0.2);border-radius:10px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:14px;font-weight:600;color:var(--text);">🔐 Permissões do Gestor</span>
+        <span style="font-size:11px;color:var(--muted);">(sub-abas que este gestor terá acesso)</span>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--subtle);margin-bottom:10px;padding:6px 10px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.25);border-radius:6px;">
+        <input type="checkbox" id="colab-is-super-gestor" style="width:14px;height:14px;">
+        <span style="color:#a78bfa;font-weight:600;">👑 Super-gestor</span>
+        <span style="color:var(--muted);font-size:11px;">(acesso total + pode gerenciar permissões)</span>
+      </label>
+      <div id="colab-permissoes-checkboxes" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--subtle);"><input type="checkbox" class="perm-check" value="operacional" style="width:14px;height:14px;"> 📋 Operacional</label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--subtle);"><input type="checkbox" class="perm-check" value="colaboradores" style="width:14px;height:14px;"> 👥 Colaboradores</label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--subtle);"><input type="checkbox" class="perm-check" value="escala-semanal" style="width:14px;height:14px;"> 📅 Escala Semanal</label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--subtle);"><input type="checkbox" class="perm-check" value="rotacao-home" style="width:14px;height:14px;"> 🏠 Rotação Home</label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--subtle);"><input type="checkbox" class="perm-check" value="sabados" style="width:14px;height:14px;"> 🗓️ Sábados</label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--subtle);"><input type="checkbox" class="perm-check" value="numeros" style="width:14px;height:14px;"> 📱 Números</label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--subtle);"><input type="checkbox" class="perm-check" value="grupos" style="width:14px;height:14px;"> 💬 Grupos</label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--subtle);"><input type="checkbox" class="perm-check" value="vips" style="width:14px;height:14px;"> ⭐ VIPs</label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--subtle);"><input type="checkbox" class="perm-check" value="treinamentos" style="width:14px;height:14px;"> 📚 Treinamentos</label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--subtle);"><input type="checkbox" class="perm-check" value="auloes" style="width:14px;height:14px;"> 🎤 Aulões</label>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button type="button" onclick="marcarTodasPermissoes(true)" style="background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);color:#60a5fa;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;">✓ Todas</button>
+        <button type="button" onclick="marcarTodasPermissoes(false)" style="background:rgba(100,116,139,0.15);border:1px solid rgba(100,116,139,0.3);color:var(--muted);padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;">✗ Nenhuma</button>
+      </div>
+    </div>
+
     <div class="modal-btns">
       <button class="btn btn-outline" onclick="fecharModal('colab-modal')">Cancelar</button>
       <button class="btn btn-primary" onclick="salvarColab()">💾 Salvar</button>
@@ -1853,7 +1883,7 @@ async function fazerLogin() {
   try {
     // Buscar colaborador pelo e-mail + senha direto na tabela
     const r = await fetch(
-      `${SB_URL}/rest/v1/colaboradores?email=eq.${encodeURIComponent(email)}&senha=eq.${encodeURIComponent(senha)}&select=id,nome,apelido,email,is_gestor,ativo,faz_atendimento&limit=1`,
+      `${SB_URL}/rest/v1/colaboradores?email=eq.${encodeURIComponent(email)}&senha=eq.${encodeURIComponent(senha)}&select=id,nome,apelido,email,is_gestor,is_super_gestor,permissoes_gestor,ativo,faz_atendimento&limit=1`,
       { headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' } }
     );
 
@@ -1896,6 +1926,34 @@ async function fazerLogin() {
   }
 }
 
+// Esconde sub-abas do Gestor baseado em permissoes_gestor do usuário logado.
+// Super-gestor: vê tudo. Gestor comum: vê só o que está em permissoes_gestor.
+// Não-gestor: não precisa fazer nada (a aba Gestor inteira já fica escondida).
+function aplicarPermissoesGestor() {
+  const u = currentColaborador;
+  if (!u?.is_gestor) return;
+
+  const isSuperGestor = !!u.is_super_gestor;
+  const perms = Array.isArray(u.permissoes_gestor) ? u.permissoes_gestor : [];
+
+  document.querySelectorAll('.gestor-subtab[data-tab]').forEach(btn => {
+    const tab = btn.dataset.tab;
+    // Super-gestor vê tudo
+    if (isSuperGestor) { btn.style.display = ''; return; }
+    // Gestor comum vê só o que está em perms
+    btn.style.display = perms.includes(tab) ? '' : 'none';
+  });
+}
+
+// Retorna true se o usuário logado pode acessar a sub-aba fornecida
+function podeAcessarSubAba(tab) {
+  const u = currentColaborador;
+  if (!u?.is_gestor) return false;
+  if (u.is_super_gestor) return true;
+  const perms = Array.isArray(u.permissoes_gestor) ? u.permissoes_gestor : [];
+  return perms.includes(tab);
+}
+
 function aplicarSessao() {
   const nome     = currentColaborador.apelido || currentColaborador.nome || currentColaborador.email;
   const inicial  = (nome[0] || '?').toUpperCase();
@@ -1908,6 +1966,9 @@ function aplicarSessao() {
   // Aba Gestor: visível só para gestores
   const tabGestor = document.getElementById('tab-gestor');
   if (tabGestor) tabGestor.style.display = isGestor ? 'inline-flex' : 'none';
+
+  // Aplicar permissões granulares nas sub-abas do Gestor
+  aplicarPermissoesGestor();
 
   mostrarApp();
 
@@ -1948,13 +2009,18 @@ function ativarAbaVisualmente() {
     if (p === 'gestor') {
       const subtab = localStorage.getItem('upseller_last_gestor_tab');
       const validSubtabs = ['operacional','colaboradores','escala-semanal','rotacao-home','sabados','numeros','grupos','vips','treinamentos','auloes'];
-      if (subtab && validSubtabs.includes(subtab)) {
+      // Se a sub-aba salva não é permitida pro usuário, fallback pra primeira permitida
+      let alvo = subtab;
+      if (alvo && !podeAcessarSubAba(alvo)) {
+        alvo = validSubtabs.find(t => podeAcessarSubAba(t));
+      }
+      if (alvo && validSubtabs.includes(alvo)) {
         document.querySelectorAll('.gestor-subpage').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.gestor-subtab').forEach(el => el.classList.remove('active'));
-        const sp = document.getElementById('gestortab-' + subtab);
+        const sp = document.getElementById('gestortab-' + alvo);
         if (sp) sp.classList.add('active');
         document.querySelectorAll('.gestor-subtab[data-tab]').forEach(el => {
-          if (el.dataset.tab === subtab) el.classList.add('active');
+          if (el.dataset.tab === alvo) el.classList.add('active');
         });
       }
     }
@@ -2128,7 +2194,7 @@ function renderSabados(data) {
     }
   }
 
-  const datas = Object.keys(porData).sort();
+  const datas = Object.keys(porData).sort().slice(0, 8);
   const first = datas[0];
 
   el.innerHTML = datas.map((ds, i) => {
@@ -3763,6 +3829,15 @@ function notificarRotacao(titulo, corpo, cor) {
 
 // ── UTILITÁRIOS ──────────────────────────────────────────
 function showGestorTab(tab) {
+  // Se o usuário não tem permissão na sub-aba solicitada, redireciona
+  // para a primeira sub-aba que ele pode acessar
+  if (!podeAcessarSubAba(tab)) {
+    const ordem = ['operacional','colaboradores','escala-semanal','rotacao-home','sabados','numeros','grupos','vips','treinamentos','auloes'];
+    const primeira = ordem.find(t => podeAcessarSubAba(t));
+    if (primeira && primeira !== tab) { showGestorTab(primeira); return; }
+    // Sem nenhuma permissão: não faz nada
+    if (!primeira) return;
+  }
   document.querySelectorAll('.gestor-subpage').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.gestor-subtab').forEach(el => el.classList.remove('active'));
   const page = document.getElementById('gestortab-' + tab);
@@ -3874,7 +3949,7 @@ async function renderAdminColabs() {
   const el = document.getElementById('admin-colab-list');
   el.innerHTML = '<div class="loading"><div class="spinner"></div> Carregando...</div>';
   try {
-    colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido,email,data_inicio,is_gestor,ativo,faz_atendimento,faz_aulao,disponivel_hoje,periodo_almoco&order=nome.asc');
+    colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido,email,data_inicio,is_gestor,is_super_gestor,permissoes_gestor,ativo,faz_atendimento,faz_aulao,disponivel_hoje,periodo_almoco&order=nome.asc');
     if (!colabsAdmin.length) { el.innerHTML = '<div class="error-msg">Nenhum colaborador.</div>'; return; }
     el.innerHTML = `<table class="admin-table">
       <thead><tr><th>Nome</th><th>E-mail</th><th>Início</th><th>Status</th><th>Almoço</th><th>Gestor</th><th>Ativo</th><th></th></tr></thead>
@@ -3917,6 +3992,10 @@ function abrirModalColab(id) {
   document.getElementById('colab-ativo').checked = true;
   document.getElementById('colab-faz-atend').checked = true;
   document.getElementById('colab-faz-aulao').checked = false;
+  // Resetar permissões
+  document.getElementById('colab-is-super-gestor').checked = false;
+  document.querySelectorAll('.perm-check').forEach(cb => cb.checked = false);
+  atualizarVisibilidadePermissoes();
   document.getElementById('colab-modal-titulo').textContent = '➕ Novo Colaborador';
   document.getElementById('colab-modal').classList.add('open');
   setTimeout(() => { criarDatePicker('colab-data-inicio', null); }, 50);
@@ -3938,9 +4017,29 @@ function editarColab(id) {
   document.getElementById('colab-ativo').checked = c.ativo !== false;
   document.getElementById('colab-faz-atend').checked = c.faz_atendimento !== false;
   document.getElementById('colab-faz-aulao').checked = !!c.faz_aulao;
+  // Carregar permissões
+  document.getElementById('colab-is-super-gestor').checked = !!c.is_super_gestor;
+  const perms = Array.isArray(c.permissoes_gestor) ? c.permissoes_gestor : [];
+  document.querySelectorAll('.perm-check').forEach(cb => {
+    cb.checked = perms.includes(cb.value);
+  });
+  atualizarVisibilidadePermissoes();
   document.getElementById('colab-modal-titulo').textContent = '✏️ Editar Colaborador';
   document.getElementById('colab-modal').classList.add('open');
   setTimeout(() => { criarDatePicker('colab-data-inicio', null); }, 50);
+}
+
+// Mostra/esconde a seção de permissões conforme contexto
+function atualizarVisibilidadePermissoes() {
+  const isGestor = document.getElementById('colab-is-gestor').checked;
+  const sou_super = !!currentColaborador?.is_super_gestor;
+  const section = document.getElementById('colab-permissoes-section');
+  // Só super-gestor vê e edita permissões. Só aparece se o colaborador for marcado como gestor.
+  section.style.display = (sou_super && isGestor) ? 'block' : 'none';
+}
+
+function marcarTodasPermissoes(marcar) {
+  document.querySelectorAll('.perm-check').forEach(cb => cb.checked = marcar);
 }
 
 async function salvarColab() {
@@ -3961,6 +4060,13 @@ async function salvarColab() {
   const body = { nome, apelido: apelido || nome, email, is_gestor: isGestor, ativo, faz_atendimento: fazAtend, faz_aulao: fazAulao, data_inicio: dataInicio || null, periodo_almoco: almoco };
   if (senha) body.senha = senha;
 
+  // Só super-gestor pode mexer em permissões de gestor
+  if (currentColaborador?.is_super_gestor) {
+    body.is_super_gestor = document.getElementById('colab-is-super-gestor').checked;
+    const perms = Array.from(document.querySelectorAll('.perm-check:checked')).map(cb => cb.value);
+    body.permissoes_gestor = perms;
+  }
+
   let ok;
   if (id) {
     ok = await sbPatch('colaboradores', `id=eq.${id}`, body);
@@ -3972,7 +4078,7 @@ async function salvarColab() {
   if (ok) {
     fecharModal('colab-modal');
     showToast(id ? 'Colaborador atualizado!' : 'Colaborador criado!');
-    colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido,email,data_inicio,is_gestor,ativo,faz_atendimento,faz_aulao,periodo_almoco&order=nome.asc').catch(() => colabsAdmin);
+    colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido,email,data_inicio,is_gestor,is_super_gestor,permissoes_gestor,ativo,faz_atendimento,faz_aulao,periodo_almoco&order=nome.asc').catch(() => colabsAdmin);
     await renderAdminColabs();
     colaboradores = await sbFetch('v_situacao_hoje').catch(() => colaboradores);
     renderDisponibilidade();
