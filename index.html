@@ -1590,8 +1590,11 @@
     <p>Adicione um cliente VIP</p>
     <input type="hidden" id="vip-edit-id">
     <div class="field"><label>Nome da conta / cliente</label><input type="text" id="vip-nome" placeholder="Ex: Maximus Store"></div>
-    <div class="field"><label>Colaborador responsável</label>
+    <div class="field"><label>Dono fixo (opcional)</label>
       <select id="vip-colab" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;margin-bottom:16px;"></select>
+    </div>
+    <div class="field"><label>Peso (1 = normal, mais = VIP "pesado")</label>
+      <input type="number" id="vip-peso" min="1" max="5" value="1" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;margin-bottom:16px;">
     </div>
     <div class="field" style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
       <input type="checkbox" id="vip-rotacao" checked style="width:16px;height:16px;">
@@ -2455,34 +2458,50 @@ async function redistribuirTudo() {
 
   } catch(e) { console.warn('Redistribuição grupos:', e.message); }
 
-  // ── Redistribuir VIPs igualitariamente ───────────────────
+  // ── Redistribuir VIPs respeitando dono fixo + peso ──────
   try {
-    const todosVips = await sbFetch('vips?select=id,nome_conta,colaborador_id&order=nome_conta.asc').catch(() => []);
+    const todosVips = await sbFetch('vips?select=id,nome_conta,colaborador_id,dono_fixo_id,peso&order=nome_conta.asc').catch(() => []);
     if (todosVips.length > 0) {
-      const nDisp = dispWpp.length;
-      const metaBase = Math.floor(todosVips.length / nDisp);
-      let extras = todosVips.length % nDisp;
-      const dispOrd = [...dispWpp].sort((a,b) => (a.nome||'').localeCompare(b.nome||''));
-      const metaMap = new Map();
-      for (const c of dispOrd) metaMap.set(c._cid, metaBase + (extras-- > 0 ? 1 : 0));
-
+      // Alocação: cid -> array de VIPs
       const alocVip = new Map();
+      const fixosVip = new Set(); // ids de VIPs com dono fixo disponível (intocáveis)
+      const orfaosVip = [];
       dispWpp.forEach(c => alocVip.set(c._cid, []));
-      const pool = [];
 
+      // 1. Donos fixos disponíveis ficam com seus VIPs
       for (const v of todosVips) {
-        if (v.colaborador_id && dispIds.has(v.colaborador_id)) {
-          alocVip.get(v.colaborador_id).push(v);
-        } else { pool.push(v); }
+        if (v.dono_fixo_id && dispIds.has(v.dono_fixo_id)) {
+          alocVip.get(v.dono_fixo_id).push(v);
+          fixosVip.add(v.id);
+        } else {
+          orfaosVip.push(v);
+        }
       }
-      for (const c of dispWpp) {
-        const arr = alocVip.get(c._cid), meta = metaMap.get(c._cid);
-        while (arr.length > meta) pool.push(arr.pop());
-      }
-      for (const v of pool) {
-        const receptor = [...dispWpp].sort((a,b) => alocVip.get(a._cid).length - alocVip.get(b._cid).length)[0];
+
+      // 2. Distribuir órfãos pra quem tem menor carga (peso)
+      const pesoVip = cid => alocVip.get(cid).reduce((s, v) => s + (v.peso || 1), 0);
+
+      for (const v of [...orfaosVip].sort((a,b) => (b.peso||1) - (a.peso||1))) {
+        const receptor = [...dispWpp].sort((a,b) => pesoVip(a._cid) - pesoVip(b._cid))[0];
         if (receptor) alocVip.get(receptor._cid).push(v);
       }
+
+      // 3. Rebalancear apenas órfãos: diferença máxima de 1 peso
+      let iter = 0;
+      while (iter < 100) {
+        const ord = [...dispWpp].sort((a,b) => pesoVip(b._cid) - pesoVip(a._cid));
+        const mais = ord[0], menos = ord[ord.length - 1];
+        if (pesoVip(mais._cid) - pesoVip(menos._cid) <= 1) break;
+        // Mover só órfãos (não-fixos)
+        const cederiveis = alocVip.get(mais._cid).filter(v => !fixosVip.has(v.id));
+        if (!cederiveis.length) break;
+        const mover = cederiveis.sort((a,b) => (a.peso||1) - (b.peso||1))[0];
+        alocVip.get(mais._cid).splice(alocVip.get(mais._cid).indexOf(mover), 1);
+        alocVip.get(menos._cid).push(mover);
+        iter++;
+      }
+
+      // 4. Aplicar mudanças no banco (só onde colaborador_id mudou)
       const mudancasVips = [];
       for (const c of dispWpp) {
         for (const v of alocVip.get(c._cid)) {
@@ -2496,7 +2515,7 @@ async function redistribuirTudo() {
   // ── Recarregar e renderizar ───────────────────────────────
   const [gNew, vNew, nNew] = await Promise.all([
     sbFetch('v_grupos_colaborador').catch(() => gruposData),
-    sbFetch('vips?select=id,nome_conta,colaborador_id,vip_em_rotacao&order=nome_conta.asc').catch(() => vipsData),
+    sbFetch('vips?select=id,nome_conta,colaborador_id,dono_fixo_id,peso,vip_em_rotacao&order=nome_conta.asc').catch(() => vipsData),
     sbFetch('v_numeros_hoje').catch(() => []),
   ]);
   gruposData   = gNew;
@@ -2848,7 +2867,7 @@ async function distribuirGrupos() {
     // Recarregar
     gruposData    = await sbFetch('v_grupos_colaborador');
     parceirosData = await sbFetch('grupos_parceiros?select=id,numero_grupo,nome_grupo,colaborador_id,peso&order=numero_grupo.asc').catch(() => []);
-    vipsData      = await sbFetch('vips?select=id,nome_conta,colaborador_id,vip_em_rotacao&order=nome_conta.asc').catch(() => []);
+    vipsData      = await sbFetch('vips?select=id,nome_conta,colaborador_id,dono_fixo_id,peso,vip_em_rotacao&order=nome_conta.asc').catch(() => []);
     numerosAtrib  = await sbFetch('v_numeros_hoje').catch(() => []);
     renderEscala(colaboradores);
     renderCanais();
@@ -3472,7 +3491,7 @@ async function loadAll() {
       sbFetch('v_rotacao_home_hoje').catch(() => []),
       sbFetch('v_grupos_colaborador').catch(() => []),
       sbFetch('grupos_parceiros?select=id,numero_grupo,nome_grupo,colaborador_id,peso&order=numero_grupo.asc').catch(() => []),
-      sbFetch('vips?select=id,nome_conta,colaborador_id,vip_em_rotacao&order=nome_conta.asc').catch(() => []),
+      sbFetch('vips?select=id,nome_conta,colaborador_id,dono_fixo_id,peso,vip_em_rotacao&order=nome_conta.asc').catch(() => []),
       sbFetch('v_treinamentos').catch(() => []),
       sbFetch('numeros_whatsapp?select=id,nome,numero&order=nome.asc').catch(() => []),
       sbFetch('v_numeros_hoje').catch(() => []),
@@ -4441,21 +4460,28 @@ async function renderAdminVips() {
     if (!colabsAdmin.length) {
       colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido,ativo,faz_atendimento&order=nome.asc').catch(() => []);
     }
-    vipsAdmin = await sbFetch('vips?select=id,nome_conta,colaborador_id,vip_em_rotacao&order=nome_conta.asc');
+    vipsAdmin = await sbFetch('vips?select=id,nome_conta,colaborador_id,dono_fixo_id,peso,vip_em_rotacao&order=nome_conta.asc');
     const colabMap = {};
     colabsAdmin.forEach(c => colabMap[c.id] = c.apelido || c.nome);
     if (!vipsAdmin.length) { el.innerHTML = '<div class="error-msg">Nenhum VIP cadastrado.</div>'; return; }
     el.innerHTML = `<table class="admin-table">
-      <thead><tr><th>Cliente / Conta</th><th>Responsável</th><th>Rotação</th><th></th></tr></thead>
-      <tbody>${vipsAdmin.map(v => `<tr>
+      <thead><tr><th>Cliente / Conta</th><th>Dono fixo</th><th>Dono hoje</th><th>Peso</th><th>Rotação</th><th></th></tr></thead>
+      <tbody>${vipsAdmin.map(v => {
+        const donoFixo = colabMap[v.dono_fixo_id];
+        const donoHoje = colabMap[v.colaborador_id];
+        const mesmo = v.dono_fixo_id && v.colaborador_id === v.dono_fixo_id;
+        return `<tr>
         <td style="color:var(--text);font-weight:500;">${v.nome_conta}</td>
-        <td>${colabMap[v.colaborador_id] || '—'}</td>
+        <td>${donoFixo ? `<span style="color:#60a5fa;font-weight:500;">${donoFixo}</span>` : '<span style="color:var(--muted);font-style:italic;">— sem dono —</span>'}</td>
+        <td>${donoHoje ? (mesmo ? `<span style="color:var(--muted);">${donoHoje}</span>` : `<span style="color:#f59e0b;font-weight:500;">${donoHoje}</span>`) : '<span style="color:var(--muted);">—</span>'}</td>
+        <td>${v.peso || 1}</td>
         <td>${v.vip_em_rotacao !== false ? '🔄 Sim' : '—'}</td>
         <td><div style="display:flex;gap:6px;">
           <button class="btn-icon" onclick="editarVip('${v.id}')">✏️</button>
           <button class="btn-icon danger" onclick="removerVip('${v.id}','${v.nome_conta.replace(/'/g,"\\'")}')">🗑️</button>
         </div></td>
-      </tr>`).join('')}</tbody>
+      </tr>`;
+      }).join('')}</tbody>
     </table>`;
   } catch(e) { el.innerHTML = `<div class="error-msg">Erro: ${e.message}</div>`; }
 }
@@ -4464,6 +4490,7 @@ function abrirModalVip() {
   document.getElementById('vip-edit-id').value = '';
   document.getElementById('vip-nome').value = '';
   document.getElementById('vip-rotacao').checked = true;
+  document.getElementById('vip-peso').value = 1;
   const sel = document.getElementById('vip-colab');
   sel.style.cssText = 'width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;font-family:\'DM Sans\',sans-serif;margin-bottom:16px;';
   const colabs = colabsAdmin.length ? colabsAdmin : colaboradores;
@@ -4479,22 +4506,24 @@ function editarVip(id) {
   document.getElementById('vip-edit-id').value = id;
   document.getElementById('vip-nome').value = v.nome_conta || '';
   document.getElementById('vip-rotacao').checked = v.vip_em_rotacao !== false;
+  document.getElementById('vip-peso').value = v.peso || 1;
   const sel = document.getElementById('vip-colab');
-  if (v.colaborador_id) sel.value = v.colaborador_id;
+  if (v.dono_fixo_id) sel.value = v.dono_fixo_id;
   document.getElementById('vip-modal-titulo').textContent = '✏️ Editar VIP';
 }
 
 async function salvarVip() {
   const id = document.getElementById('vip-edit-id').value;
   const nome = document.getElementById('vip-nome').value.trim();
-  const colabId = document.getElementById('vip-colab').value || null;
+  const donoFixoId = document.getElementById('vip-colab').value || null;
+  const peso = parseInt(document.getElementById('vip-peso').value) || 1;
   const rotacao = document.getElementById('vip-rotacao').checked;
   if (!nome) { alert('Informe o nome do cliente.'); return; }
-  const body = { nome_conta: nome, colaborador_id: colabId, vip_em_rotacao: rotacao };
+  // Salva dono_fixo_id (permanente). colaborador_id é gerenciado pela redistribuição.
+  const body = { nome_conta: nome, dono_fixo_id: donoFixoId, peso, vip_em_rotacao: rotacao };
   console.log('[salvarVip] body:', JSON.stringify(body), 'id:', id);
   let ok;
   if (id) {
-    // PATCH direto com fetch para ver erro detalhado
     const r = await fetch(`${SB_URL}/rest/v1/vips?id=eq.${id}`, {
       method: 'PATCH',
       headers: { 'apikey': SB_KEY_SVC, 'Authorization': `Bearer ${SB_KEY_SVC}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
@@ -4508,7 +4537,7 @@ async function salvarVip() {
   if (ok) {
     fecharModal('vip-modal'); showToast('VIP salvo!');
     await renderAdminVips();
-    vipsData = await sbFetch('vips?select=id,nome_conta,colaborador_id,vip_em_rotacao&order=nome_conta.asc').catch(() => vipsData);
+    vipsData = await sbFetch('vips?select=id,nome_conta,colaborador_id,dono_fixo_id,peso,vip_em_rotacao&order=nome_conta.asc').catch(() => vipsData);
   }
 }
 
