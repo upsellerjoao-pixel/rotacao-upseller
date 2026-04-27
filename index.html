@@ -3416,8 +3416,11 @@ function scrollRotacao(dir) {
 // Tabela: escala_semanal com UNIQUE(colaborador_id, data)
 async function sincronizarEscalaSemanalHoje(escalaAtual) {
   try {
-    // Buscar registros da escala semanal para hoje
-    const escSemanal = await sbFetch(`escala_semanal?select=colaborador_id,canal&data=eq.${HOJE_STR}`).catch(() => []);
+    // Buscar registros da escala semanal para hoje (usa service key para ignorar RLS)
+    const escSemanal = await fetch(
+      `${SB_URL}/rest/v1/escala_semanal?select=colaborador_id,canal&data=eq.${HOJE_STR}`,
+      { headers: { 'apikey': SB_KEY_SVC || SB_KEY, 'Authorization': `Bearer ${SB_KEY_SVC || SB_KEY}` } }
+    ).then(r => r.ok ? r.json() : []).catch(() => []);
     if (!escSemanal.length) return; // Sem planejamento para hoje, não faz nada
 
     // Para cada colaborador na escala semanal, verificar se canal difere do atual
@@ -5079,7 +5082,11 @@ async function renderEscalaSemanal(skipFetch = false) {
 
     // skipFetch = true quando já atualizamos escalaSemanaBD localmente (evita sobrescrever)
     if (!skipFetch) {
-      escalaSemanaBD = await sbFetch(`escala_semanal?select=id,colaborador_id,data,canal&data=gte.${dataIni}&data=lte.${dataFim}`).catch(() => []);
+      // Usa service key porque a anon key pode ser bloqueada pelo RLS na escala_semanal
+      escalaSemanaBD = await fetch(
+        `${SB_URL}/rest/v1/escala_semanal?select=id,colaborador_id,data,canal&data=gte.${dataIni}&data=lte.${dataFim}`,
+        { headers: { 'apikey': SB_KEY_SVC || SB_KEY, 'Authorization': `Bearer ${SB_KEY_SVC || SB_KEY}` } }
+      ).then(r => r.ok ? r.json() : []).catch(() => []);
     }
 
     // Calcula novato por data específica
