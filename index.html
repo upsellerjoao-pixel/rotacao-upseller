@@ -2338,21 +2338,7 @@ async function toggleDisp(id, atual) {
 // 5. Redistribuir VIPs igualitariamente (por quantidade, não por peso)
 // 6. Aplicar apenas mudanças reais (grupos que trocaram de dono)
 // ══════════════════════════════════════════════════════════════════════
-let _redistribuindo = false;
 async function redistribuirTudo() {
-  if (_redistribuindo) {
-    console.log('[redistribuirTudo] já em andamento, ignorando chamada duplicada');
-    return;
-  }
-  _redistribuindo = true;
-  try {
-    return await _redistribuirTudoInner();
-  } finally {
-    _redistribuindo = false;
-  }
-}
-
-async function _redistribuirTudoInner() {
   if (!SB_KEY_SVC) {
     renderCanais(); renderEscala(colaboradores);
     renderNumeros(); renderVisao(colaboradores, auloesData, sabadosData, vipsData);
@@ -4897,17 +4883,16 @@ function blocoAlmocoAtual() {
 // - Se mudou de bloco em relação à última verificação, aplica os canais previstos
 //   pra esse bloco e marca quem está "almoçando" como _em_almoco=true
 // - Se saiu de qualquer bloco (null), volta tudo ao normal
-let _almocoJaAplicado = false; // controla se já aplicamos o estado pelo menos uma vez na sessão
-
 async function aplicarAlmocoAgora() {
   try {
     const blocoAtual = blocoAlmocoAtual();
     const blocoAnterior = localStorage.getItem('upseller_bloco_almoco') || '';
 
-    // Sem mudança de bloco E já aplicamos pelo menos uma vez → não faz nada
-    if (blocoAtual === blocoAnterior && _almocoJaAplicado) return;
+    // Sem mudança de bloco → não faz NADA (não re-renderiza nem refetcha)
+    // Isso evita polling pesado quando estamos fora do horário de almoço
+    if (blocoAtual === blocoAnterior) return;
 
-    // Houve transição de bloco OU é a primeira execução → carregar e aplicar
+    // Houve transição de bloco → carregar registros e aplicar
     const hoje = new Date().toISOString().slice(0,10);
     const registros = await fetch(
       `${SB_URL}/rest/v1/escala_almoco_diaria?select=colaborador_id,bloco,canal&data=eq.${hoje}`,
@@ -4934,9 +4919,8 @@ async function aplicarAlmocoAgora() {
       if (mudancasCanal.length) {
         await Promise.all(mudancasCanal.map(m => upsertCanalEscala(m.colaborador_id, m.canal)));
       }
-    } else if (blocoAnterior) {
+    } else {
       // Saiu do almoço → volta pra escala semanal de hoje
-      // (só faz isso se realmente saiu de um bloco; senão não toca em nada)
       const escSemHoje = await fetch(
         `${SB_URL}/rest/v1/escala_semanal?select=colaborador_id,canal&data=eq.${hoje}`,
         { headers: { 'apikey': SB_KEY_SVC || SB_KEY, 'Authorization': `Bearer ${SB_KEY_SVC || SB_KEY}` } }
@@ -4953,23 +4937,16 @@ async function aplicarAlmocoAgora() {
       }
     }
 
-    // SEMPRE resetar _em_almoco em todo mundo, e só marcar quem realmente está
+    // Marcar em memória
     for (const c of (colaboradores || [])) {
       const cid = c.id || c.colaborador_id;
       c._em_almoco = almocando.has(cid);
     }
 
     localStorage.setItem('upseller_bloco_almoco', blocoAtual || '');
-    _almocoJaAplicado = true;
-    console.log('[Almoço] Bloco: ' + (blocoAnterior || 'nenhum') + ' → ' + (blocoAtual || 'fora') + ' (' + almocando.size + ' almoçando)');
+    console.log('[Almoço] Bloco: ' + blocoAnterior + ' → ' + (blocoAtual || 'fora') + ' (' + almocando.size + ' almoçando)');
 
-    // Só dispara redistribuição se houve mudança real
-    if (blocoAtual !== blocoAnterior || almocando.size > 0) {
-      await redistribuirTudo();
-    } else {
-      // Sem mudança real, apenas re-renderiza
-      renderCanais();
-    }
+    await redistribuirTudo();
   } catch(e) { console.warn('[Almoço] Erro:', e.message); }
 }
 
