@@ -3,6 +3,36 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- ════════════════════════════════════════════════════════════════════
+     CACHE-BUSTING + AUTO-UPDATE
+     - Meta tags: forçam o browser a NUNCA cachear este HTML
+     - APP_VERSION: bate com cada deploy. Auto-update detecta versão
+       nova no servidor e força location.reload() pra todos.
+     - Verifica a cada 2min. Sem isso, abas dormindo nunca atualizam.
+     ════════════════════════════════════════════════════════════════════ -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<script>
+  window.APP_VERSION = '2026-04-28-1745'; // ATUALIZAR A CADA DEPLOY
+  (function checkUpdate() {
+    setInterval(async () => {
+      try {
+        // Busca o próprio HTML com query string única pra furar cache
+        const r = await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' });
+        if (!r.ok) return;
+        const html = await r.text();
+        const m = html.match(/window\.APP_VERSION\s*=\s*['"]([^'"]+)['"]/);
+        if (m && m[1] !== window.APP_VERSION) {
+          console.warn('🔄 Nova versão detectada:', m[1], '(atual:', window.APP_VERSION, ') — recarregando…');
+          location.reload();
+        }
+      } catch(e) { /* sem rede, tenta de novo no próximo ciclo */ }
+    }, 2 * 60 * 1000); // 2 minutos
+  })();
+</script>
+
 <title>Rotação Upseller</title>
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
