@@ -5003,9 +5003,14 @@ async function aplicarAlmocoAgora() {
 }
 
 function iniciarPollingAlmoco() {
-  if (_pollingAlmoco) clearInterval(_pollingAlmoco);
-  setTimeout(aplicarAlmocoAgora, 10000); // primeira após 10s
-  _pollingAlmoco = setInterval(aplicarAlmocoAgora, 5 * 60 * 1000); // a cada 5min
+  // 🚨 TEMPORARIAMENTE DESABILITADO: o polling de almoço está revertendo
+  // ações manuais do gestor. Voltará após investigação.
+  console.log('[Almoço] Polling automático desabilitado temporariamente.');
+  return;
+  // Código original abaixo (comentado):
+  // if (_pollingAlmoco) clearInterval(_pollingAlmoco);
+  // setTimeout(aplicarAlmocoAgora, 10000);
+  // _pollingAlmoco = setInterval(aplicarAlmocoAgora, 5 * 60 * 1000);
 }
 
 // ── ROTAÇÃO HOME ─────────────────────────────────────────
