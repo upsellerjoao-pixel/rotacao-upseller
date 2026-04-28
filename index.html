@@ -3,96 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<!-- ════════════════════════════════════════════════════════════════════
-     CACHE-BUSTING + AUTO-UPDATE
-     - Meta tags: forçam o browser a NUNCA cachear este HTML
-     - APP_VERSION: bate com cada deploy. Auto-update detecta versão
-       nova no servidor e força location.reload() pra todos.
-     - Verifica a cada 2min. Sem isso, abas dormindo nunca atualizam.
-     ════════════════════════════════════════════════════════════════════ -->
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
-<script>
-  window.APP_VERSION = '2026-04-28-1745'; // ATUALIZAR A CADA DEPLOY
-  (function checkUpdate() {
-    setInterval(async () => {
-      try {
-        // Busca o próprio HTML com query string única pra furar cache
-        const r = await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' });
-        if (!r.ok) return;
-        const html = await r.text();
-        const m = html.match(/window\.APP_VERSION\s*=\s*['"]([^'"]+)['"]/);
-        if (m && m[1] !== window.APP_VERSION) {
-          console.warn('🔄 Nova versão detectada:', m[1], '(atual:', window.APP_VERSION, ') — recarregando…');
-          location.reload();
-        }
-      } catch(e) { /* sem rede, tenta de novo no próximo ciclo */ }
-    }, 2 * 60 * 1000); // 2 minutos
-  })();
-</script>
-
 <title>Rotação Upseller</title>
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-
-<!-- ════════════════════════════════════════════════════════════════════
-     INTERCEPTOR GLOBAL DE DEBUG (instalado ANTES de qualquer outro JS)
-     - Captura TODOS os fetch que tocam /rest/v1/escalas
-     - Adiciona header X-Origem-JS com a função JS que originou a chamada
-       (extraída da stack trace), gravado em escalas_audit.client_info
-     - Loga no console com stack + body
-     - Sempre ativo (sem flag), pra garantir que pegue TUDO desde o boot
-     - Para desativar: window._DBG_ESCALAS_OFF = true
-     ════════════════════════════════════════════════════════════════════ -->
-<script>
-(function(){
-  const _origFetch = window.fetch;
-  window.fetch = function(input, init){
-    try {
-      const url = typeof input === 'string' ? input : (input && input.url) || '';
-      const opts = init || (typeof input === 'object' ? input : null) || {};
-      const method = (opts.method || 'GET').toUpperCase();
-      const tocaEscalas = url.includes('/rest/v1/escalas?') || url.match(/\/rest\/v1\/escalas$/);
-      const isWrite = method !== 'GET' && method !== 'HEAD';
-
-      if (tocaEscalas && isWrite && !window._DBG_ESCALAS_OFF) {
-        // Extrai stack trace (nome das 3-4 funções no caminho)
-        const stack = new Error().stack || '';
-        const linhas = stack.split('\n').slice(1, 8).map(l => {
-          const m = l.match(/at (\S+)/);
-          return m ? m[1] : null;
-        }).filter(Boolean).filter(n => !n.startsWith('Object.') && n !== 'fetch');
-        const origem = linhas.slice(0, 4).join(' < ') || '?';
-
-        // Adiciona header customizado (vai pra escalas_audit.client_info)
-        const headers = new Headers(opts.headers || {});
-        headers.set('X-Origem-JS', origem.slice(0, 200));
-        opts.headers = headers;
-
-        // Log visível no console
-        console.warn(
-          `🔥 [escalas/${method}] ${url.replace(/^.*\/rest\/v1/,'')}`,
-          '\n   origem:', origem,
-          '\n   body:',   opts.body ? String(opts.body).slice(0, 300) : '(vazio)'
-        );
-        console.trace('   stack completa:');
-
-        // Re-empacota o init pra fetch
-        if (typeof input === 'string') {
-          return _origFetch.call(this, input, opts);
-        } else {
-          return _origFetch.call(this, new Request(input, opts));
-        }
-      }
-    } catch(e) { /* silencioso, não pode quebrar fetch */ }
-    return _origFetch.apply(this, arguments);
-  };
-  console.log('✅ Interceptor de escalas ATIVO. Para desligar: window._DBG_ESCALAS_OFF = true');
-})();
-</script>
 <style>
   :root {
     --bg: #0a0f1e;
@@ -3603,63 +3517,96 @@ function scrollRotacao(dir) {
 // para hoje, atualizando o campo canal_hoje de cada colaborador.
 // Se o canal atual já está correto, não faz nada (evita writes desnecessários).
 // Tabela: escala_semanal com UNIQUE(colaborador_id, data)
+// ══════════════════════════════════════════════════════════════════════
+// sincronizarEscalaSemanalHoje(escalaAtual)
+//
+// Materializa o planejamento de `escala_semanal` em registros reais em
+// `escalas` para hoje. Roda no `loadAll`.
+//
+// ⚠️ CONTRATO CRÍTICO — não quebrar:
+//
+//   1) Esta função é INSERT-ONLY. Nunca sobrescreve canal de quem já tem
+//      registro em `escalas` hoje, sob NENHUMA circunstância.
+//      Por que: `escalas` é o ESTADO REAL do dia. Drag-and-drop manual e
+//      qualquer outra ação que escreve em `escalas` é a verdade. A
+//      `escala_semanal` é só um PLANO — vira realidade na primeira sync
+//      do dia, e depois disso fica obsoleta para hoje.
+//
+//   2) Roda no máximo 1× por dia por sessão. sessionStorage guarda flag
+//      por data. Re-execuções no mesmo dia retornam imediatamente sem
+//      tocar no banco. Por que: defesa em profundidade contra qualquer
+//      `loadAll` errante (verificarMudancas dispara loadAll a cada
+//      mudança detectada — não pode ficar rodando sync toda vez).
+//
+//   3) Usa POST direto com Prefer: resolution=ignore-duplicates. Se um
+//      colaborador já tem registro hoje (UNIQUE em colaborador_id+data),
+//      o PostgREST simplesmente ignora aquela linha. Sem PATCH, sem
+//      sobrescrita possível. Esta é a garantia técnica do contrato (1).
+//
+// Bug histórico que esta versão corrige:
+//   Versões anteriores chamavam upsertCanalEscala(), que faz PATCH antes
+//   de INSERT. Em race conditions (replica lag do PostgREST), a query de
+//   "quem já tem registro" devolvia estado defasado e não enxergava o
+//   INSERT que o gestor acabou de fazer pelo drag-and-drop. O loop
+//   processava esse colaborador como "novo", PATCH sobrescrevia o canal
+//   manual de volta pro planejado. Resultado: drag não persistia,
+//   reverte sozinho ~10s depois (no próximo loadAll triggerado por
+//   verificarMudancas). Karina/Lucas voltavam pra WhatsApp sozinhos.
+// ══════════════════════════════════════════════════════════════════════
 async function sincronizarEscalaSemanalHoje(escalaAtual) {
-  try {
-    // ── PROTEÇÃO 1: rodar no máximo 1x por sessão por dia ──────────────
-    // Se outra aba já sincronizou hoje, não rodamos de novo. Isso evita
-    // que múltiplas abas/dispositivos fiquem fazendo upsert em loop e
-    // sobrescrevendo ações manuais via race condition.
-    const flagKey = `upseller_sync_done_${HOJE_STR}`;
-    if (sessionStorage.getItem(flagKey) === '1') {
-      console.log('[Sync Escala] Já sincronizado nesta sessão hoje — pulando.');
-      return;
-    }
+  // Guard 1: roda 1× por dia por sessão
+  const flagKey = `upseller_sync_done_${HOJE_STR}`;
+  if (sessionStorage.getItem(flagKey) === '1') return;
 
-    // Buscar registros da escala semanal para hoje (planejamento)
+  try {
+    // Lê planejamento do dia
     const escSemanal = await fetch(
       `${SB_URL}/rest/v1/escala_semanal?select=colaborador_id,canal&data=eq.${HOJE_STR}`,
       { headers: { 'apikey': SB_KEY_SVC || SB_KEY, 'Authorization': `Bearer ${SB_KEY_SVC || SB_KEY}` } }
     ).then(r => r.ok ? r.json() : []).catch(() => []);
 
-    if (!escSemanal.length) {
-      sessionStorage.setItem(flagKey, '1'); // marcar como rodado mesmo sem trabalho
+    // Marca flag MESMO se não houver planejamento (evita re-tentativas no dia todo)
+    sessionStorage.setItem(flagKey, '1');
+
+    if (!escSemanal.length) return;
+
+    // INSERT em massa com resolution=ignore-duplicates.
+    // PostgREST recebe a lista inteira; UNIQUE(colaborador_id, data) na
+    // tabela `escalas` filtra duplicatas no servidor. Nada é sobrescrito.
+    const diaMap = ['DOM','SEG','TER','QUA','QUI','SEX','SAB'];
+    const dia_semana = diaMap[new Date().getDay()];
+    const payload = escSemanal.map(reg => ({
+      colaborador_id: reg.colaborador_id,
+      data: HOJE_STR,
+      dia_semana,
+      canal: reg.canal === 'Sales' ? 'Sales' : 'WhatsApp'
+    }));
+
+    const r = await fetch(`${SB_URL}/rest/v1/escalas`, {
+      method: 'POST',
+      headers: {
+        'apikey': SB_KEY_SVC,
+        'Authorization': `Bearer ${SB_KEY_SVC}`,
+        'Content-Type': 'application/json',
+        // CRÍTICO: ignore-duplicates faz o servidor pular linhas que
+        // violariam UNIQUE(colaborador_id, data). Não confundir com
+        // merge-duplicates, que faria UPDATE em cima — exatamente o
+        // que queremos evitar.
+        'Prefer': 'resolution=ignore-duplicates,return=minimal'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!r.ok) {
+      console.warn('[Sync Escala] POST falhou:', r.status, await r.text().catch(() => ''));
       return;
     }
 
-    // Buscar quem JÁ TEM registro na tabela `escalas` para hoje (canal já aplicado)
-    // Quem já tem registro = ação manual ou sincronização anterior já aconteceu.
-    // NÃO MEXEMOS NESSAS PESSOAS — drag-and-drop do gestor é sagrado.
-    const jaTemRegistro = await fetch(
-      `${SB_URL}/rest/v1/escalas?select=colaborador_id&data=eq.${HOJE_STR}`,
-      { headers: { 'apikey': SB_KEY_SVC || SB_KEY, 'Authorization': `Bearer ${SB_KEY_SVC || SB_KEY}` } }
-    ).then(r => r.ok ? r.json() : []).catch(() => []);
-    const idsComRegistro = new Set(jaTemRegistro.map(r => r.colaborador_id));
-
-    // Aplica APENAS pra quem AINDA NÃO tem registro em `escalas` hoje.
-    // Ou seja, primeira vez que carrega o sistema no dia: aplica o planejado.
-    // Depois disso, drag-and-drop do gestor prevalece e nunca é sobrescrito.
-    const mudancas = [];
-    for (const reg of escSemanal) {
-      if (idsComRegistro.has(reg.colaborador_id)) continue; // já tem → respeita
-      mudancas.push({ colaborador_id: reg.colaborador_id, canal: reg.canal });
-    }
-
-    if (!mudancas.length) {
-      sessionStorage.setItem(flagKey, '1');
-      return; // Tudo já está aplicado
-    }
-
-    // Aplicar as mudanças em paralelo (são INSERTs, não overrides)
-    await Promise.all(mudancas.map(m => upsertCanalEscala(m.colaborador_id, m.canal)));
-
-    // Marca como rodado pra esta sessão
-    sessionStorage.setItem(flagKey, '1');
-
-    // Recarregar escala após sincronização
+    // Recarrega view com estado pós-sync
     const novaEscala = await sbFetchSvc('v_situacao_hoje').catch(() => escalaAtual);
-    colaboradores = novaEscala;
+    if (Array.isArray(novaEscala)) colaboradores = novaEscala;
 
-    console.log(`[Sync Escala] ${mudancas.length} canal(is) inseridos da escala semanal (apenas registros novos).`);
+    console.log(`[Sync Escala] ✓ planejamento materializado (${payload.length} entradas, duplicatas ignoradas).`);
   } catch(e) {
     console.warn('[Sync Escala] Erro:', e.message);
   }
