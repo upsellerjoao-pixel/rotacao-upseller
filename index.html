@@ -7,6 +7,62 @@
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<!-- ════════════════════════════════════════════════════════════════════
+     INTERCEPTOR GLOBAL DE DEBUG (instalado ANTES de qualquer outro JS)
+     - Captura TODOS os fetch que tocam /rest/v1/escalas
+     - Adiciona header X-Origem-JS com a função JS que originou a chamada
+       (extraída da stack trace), gravado em escalas_audit.client_info
+     - Loga no console com stack + body
+     - Sempre ativo (sem flag), pra garantir que pegue TUDO desde o boot
+     - Para desativar: window._DBG_ESCALAS_OFF = true
+     ════════════════════════════════════════════════════════════════════ -->
+<script>
+(function(){
+  const _origFetch = window.fetch;
+  window.fetch = function(input, init){
+    try {
+      const url = typeof input === 'string' ? input : (input && input.url) || '';
+      const opts = init || (typeof input === 'object' ? input : null) || {};
+      const method = (opts.method || 'GET').toUpperCase();
+      const tocaEscalas = url.includes('/rest/v1/escalas?') || url.match(/\/rest\/v1\/escalas$/);
+      const isWrite = method !== 'GET' && method !== 'HEAD';
+
+      if (tocaEscalas && isWrite && !window._DBG_ESCALAS_OFF) {
+        // Extrai stack trace (nome das 3-4 funções no caminho)
+        const stack = new Error().stack || '';
+        const linhas = stack.split('\n').slice(1, 8).map(l => {
+          const m = l.match(/at (\S+)/);
+          return m ? m[1] : null;
+        }).filter(Boolean).filter(n => !n.startsWith('Object.') && n !== 'fetch');
+        const origem = linhas.slice(0, 4).join(' < ') || '?';
+
+        // Adiciona header customizado (vai pra escalas_audit.client_info)
+        const headers = new Headers(opts.headers || {});
+        headers.set('X-Origem-JS', origem.slice(0, 200));
+        opts.headers = headers;
+
+        // Log visível no console
+        console.warn(
+          `🔥 [escalas/${method}] ${url.replace(/^.*\/rest\/v1/,'')}`,
+          '\n   origem:', origem,
+          '\n   body:',   opts.body ? String(opts.body).slice(0, 300) : '(vazio)'
+        );
+        console.trace('   stack completa:');
+
+        // Re-empacota o init pra fetch
+        if (typeof input === 'string') {
+          return _origFetch.call(this, input, opts);
+        } else {
+          return _origFetch.call(this, new Request(input, opts));
+        }
+      }
+    } catch(e) { /* silencioso, não pode quebrar fetch */ }
+    return _origFetch.apply(this, arguments);
+  };
+  console.log('✅ Interceptor de escalas ATIVO. Para desligar: window._DBG_ESCALAS_OFF = true');
+})();
+</script>
 <style>
   :root {
     --bg: #0a0f1e;
@@ -1746,6 +1802,18 @@ async function sbFetch(path) {
   return r.json();
 }
 
+// sbFetchSvc: igual ao sbFetch mas usa service role key.
+// Necessário pra ler tabelas/views com RLS ativo (ex: v_situacao_hoje
+// que consulta a tabela `escalas` que tem RLS).
+async function sbFetchSvc(path) {
+  const headers = SB_KEY_SVC
+    ? { 'apikey': SB_KEY_SVC, 'Authorization': `Bearer ${SB_KEY_SVC}` }
+    : hdrs(false);
+  const r = await fetch(`${SB_URL}/rest/v1/${path}`, { headers });
+  if (!r.ok) throw new Error(`${r.status}`);
+  return r.json();
+}
+
 async function sbPatch(table, filter, body) {
   if (!SB_KEY_SVC) {
     alert('⚠️ Service Role Key não configurada!\n\nEdite o arquivo dashboard_v6.html e cole a service_role key do Supabase na variável SB_KEY_SVC.');
@@ -2698,23 +2766,31 @@ async function upsertCanalEscala(colaboradorId, canal) {
     const d = new Date();
     const diaMap = ['DOM','SEG','TER','QUA','QUI','SEX','SAB'];
     const dia_semana = diaMap[d.getDay()];
-    // Tenta UPDATE primeiro (escala do dia já existe)
+    // Tenta UPDATE primeiro (escala do dia já existe).
+    // Header `Prefer: return=representation` faz o PostgREST retornar
+    // os registros afetados — assim sabemos se o PATCH alterou algo
+    // sem precisar de um GET subsequente (que seria bloqueado por RLS).
     const resUp = await fetch(
       `${SB_URL}/rest/v1/escalas?colaborador_id=eq.${colaboradorId}&data=eq.${HOJE_STR}`,
-      { method: 'PATCH', headers: hdrs(true), body: JSON.stringify({ canal }) }
+      {
+        method: 'PATCH',
+        headers: {
+          'apikey': SB_KEY_SVC,
+          'Authorization': `Bearer ${SB_KEY_SVC}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify({ canal })
+      }
     );
     if (!resUp.ok) {
       const txt = await resUp.text().catch(()=> '');
       alert(`Erro ao atualizar escala: ${resUp.status} ${txt}`);
       return false;
     }
-    // Verificar se algo foi afetado — se não, faz INSERT
-    const check = await fetch(
-      `${SB_URL}/rest/v1/escalas?select=id&colaborador_id=eq.${colaboradorId}&data=eq.${HOJE_STR}`,
-      { headers: hdrs(false) }
-    );
-    const rows = await check.json();
-    if (!rows.length) {
+    // Resposta retorna os registros afetados. Se vazio → não existia, faz INSERT.
+    const updated = await resUp.json().catch(() => []);
+    if (!Array.isArray(updated) || updated.length === 0) {
       await sbPost('escalas', { colaborador_id: colaboradorId, data: HOJE_STR, dia_semana, canal: canal === 'Sales' ? 'Sales' : 'WhatsApp' });
     }
     return true;
@@ -3499,47 +3575,61 @@ function scrollRotacao(dir) {
 // Tabela: escala_semanal com UNIQUE(colaborador_id, data)
 async function sincronizarEscalaSemanalHoje(escalaAtual) {
   try {
-    // Só sincroniza UMA VEZ por dia. Se já foi sincronizado hoje, não roda de novo.
-    // Isso evita que ações manuais do gestor (drag and drop pra Sales/WPP no
-    // Operacional) sejam sobrescritas pela escala semanal a cada loadAll/F5.
-    const chaveSync = `upseller_sync_escala_${HOJE_STR}`;
-    if (localStorage.getItem(chaveSync) === '1') {
-      return; // Já sincronizado hoje — ações manuais prevalecem
+    // ── PROTEÇÃO 1: rodar no máximo 1x por sessão por dia ──────────────
+    // Se outra aba já sincronizou hoje, não rodamos de novo. Isso evita
+    // que múltiplas abas/dispositivos fiquem fazendo upsert em loop e
+    // sobrescrevendo ações manuais via race condition.
+    const flagKey = `upseller_sync_done_${HOJE_STR}`;
+    if (sessionStorage.getItem(flagKey) === '1') {
+      console.log('[Sync Escala] Já sincronizado nesta sessão hoje — pulando.');
+      return;
     }
 
-    // Buscar registros da escala semanal para hoje (usa service key para ignorar RLS)
+    // Buscar registros da escala semanal para hoje (planejamento)
     const escSemanal = await fetch(
       `${SB_URL}/rest/v1/escala_semanal?select=colaborador_id,canal&data=eq.${HOJE_STR}`,
       { headers: { 'apikey': SB_KEY_SVC || SB_KEY, 'Authorization': `Bearer ${SB_KEY_SVC || SB_KEY}` } }
     ).then(r => r.ok ? r.json() : []).catch(() => []);
 
-    // Marca como sincronizado IMEDIATAMENTE (mesmo se não houver registros)
-    // — assim mesmo dias sem escala_semanal não tentam sincronizar de novo.
-    localStorage.setItem(chaveSync, '1');
-
-    if (!escSemanal.length) return; // Sem planejamento para hoje, não faz nada
-
-    // Para cada colaborador na escala semanal, verificar se canal difere do atual
-    const mudancas = [];
-    for (const reg of escSemanal) {
-      const colabAtual = escalaAtual.find(c => (c.id || c.colaborador_id) === reg.colaborador_id);
-      if (!colabAtual) continue;
-      const canalAtual = colabAtual.canal_hoje || 'WhatsApp';
-      if (canalAtual !== reg.canal) {
-        mudancas.push({ colaborador_id: reg.colaborador_id, canal: reg.canal });
-      }
+    if (!escSemanal.length) {
+      sessionStorage.setItem(flagKey, '1'); // marcar como rodado mesmo sem trabalho
+      return;
     }
 
-    if (!mudancas.length) return; // Tudo já está correto
+    // Buscar quem JÁ TEM registro na tabela `escalas` para hoje (canal já aplicado)
+    // Quem já tem registro = ação manual ou sincronização anterior já aconteceu.
+    // NÃO MEXEMOS NESSAS PESSOAS — drag-and-drop do gestor é sagrado.
+    const jaTemRegistro = await fetch(
+      `${SB_URL}/rest/v1/escalas?select=colaborador_id&data=eq.${HOJE_STR}`,
+      { headers: { 'apikey': SB_KEY_SVC || SB_KEY, 'Authorization': `Bearer ${SB_KEY_SVC || SB_KEY}` } }
+    ).then(r => r.ok ? r.json() : []).catch(() => []);
+    const idsComRegistro = new Set(jaTemRegistro.map(r => r.colaborador_id));
 
-    // Aplicar as mudanças em paralelo
+    // Aplica APENAS pra quem AINDA NÃO tem registro em `escalas` hoje.
+    // Ou seja, primeira vez que carrega o sistema no dia: aplica o planejado.
+    // Depois disso, drag-and-drop do gestor prevalece e nunca é sobrescrito.
+    const mudancas = [];
+    for (const reg of escSemanal) {
+      if (idsComRegistro.has(reg.colaborador_id)) continue; // já tem → respeita
+      mudancas.push({ colaborador_id: reg.colaborador_id, canal: reg.canal });
+    }
+
+    if (!mudancas.length) {
+      sessionStorage.setItem(flagKey, '1');
+      return; // Tudo já está aplicado
+    }
+
+    // Aplicar as mudanças em paralelo (são INSERTs, não overrides)
     await Promise.all(mudancas.map(m => upsertCanalEscala(m.colaborador_id, m.canal)));
 
+    // Marca como rodado pra esta sessão
+    sessionStorage.setItem(flagKey, '1');
+
     // Recarregar escala após sincronização
-    const novaEscala = await sbFetch('v_situacao_hoje').catch(() => escalaAtual);
+    const novaEscala = await sbFetchSvc('v_situacao_hoje').catch(() => escalaAtual);
     colaboradores = novaEscala;
 
-    console.log(`[Sync Escala] ${mudancas.length} canal(is) sincronizado(s) da escala semanal para hoje.`);
+    console.log(`[Sync Escala] ${mudancas.length} canal(is) inseridos da escala semanal (apenas registros novos).`);
   } catch(e) {
     console.warn('[Sync Escala] Erro:', e.message);
   }
@@ -3555,11 +3645,28 @@ async function sincronizarEscalaSemanalHoje(escalaAtual) {
 // grupos, parceiros, vips, treinamentos, números, atribuições de números.
 // ══════════════════════════════════════════════════════════════════════
 async function loadAll() {
+  // 🔍 INTERCEPTOR DE DEBUG: ativado se sessionStorage tem flag debugEscalas
+  // Use no console: sessionStorage.setItem('debugEscalas', '1') e dê F5
+  if (sessionStorage.getItem('debugEscalas') === '1' && !window._debugEscalasInstalado) {
+    window._debugEscalasInstalado = true;
+    const _origFetch = window.fetch;
+    window.fetch = function(url, opts) {
+      const u = String(url);
+      if (u.includes('/escalas') && opts?.method && opts.method !== 'GET') {
+        console.warn('🔥 WRITE em escalas:', opts.method, u);
+        console.warn('  body:', opts.body);
+        console.trace('  pilha:');
+      }
+      return _origFetch.apply(this, arguments);
+    };
+    console.log('✅ Debug de escalas instalado e ativo');
+  }
+
   if (!currentColaborador) { mostrarLogin(); return; }
 
   try {
     const [escala, auloes, sabados, rotHome, homeHojeView, grupos, parceiros, vips, treinamentos, numeros, numAtrib] = await Promise.all([
-      sbFetch('v_situacao_hoje'),
+      sbFetchSvc('v_situacao_hoje'),
       sbFetch('v_aulao_hoje_semana').catch(() => sbFetch('auloes?select=*,colaboradores(nome,apelido)&order=data.asc&limit=10')),
       sbFetch(`rotacao_sabados?select=data,colaborador_id&data=gte.${HOJE_STR}&order=data.asc&limit=200`).catch(() => []),
       sbFetch(`v_rotacao_home_semana?order=data.asc&data=gte.${HOJE_STR}&limit=20`).catch(() => 
@@ -3725,7 +3832,7 @@ async function tirarSnapshot() {
   const cid = currentColaborador.id;
   try {
     const [escala, colab, grupos, numero] = await Promise.all([
-      sbFetch(`escalas?colaborador_id=eq.${cid}&data=eq.${HOJE_STR}&select=canal&limit=1`).catch(() => []),
+      sbFetchSvc(`escalas?colaborador_id=eq.${cid}&data=eq.${HOJE_STR}&select=canal&limit=1`).catch(() => []),
       sbFetch(`colaboradores?id=eq.${cid}&select=disponivel_hoje&limit=1`).catch(() => []),
       sbFetch(`grupos_whatsapp?colaborador_id=eq.${cid}&select=id&order=id.asc`).catch(() => []),
       sbFetch(`numeros_atribuicoes?colaborador_id=eq.${cid}&data=eq.${HOJE_STR}&select=numero_id&limit=1`).catch(() => []),
@@ -4270,7 +4377,7 @@ async function salvarColab() {
     showToast(id ? 'Colaborador atualizado!' : 'Colaborador criado!');
     colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido,email,data_inicio,is_gestor,is_super_gestor,permissoes_gestor,ativo,faz_atendimento,faz_aulao,periodo_almoco&order=nome.asc').catch(() => colabsAdmin);
     await renderAdminColabs();
-    colaboradores = await sbFetch('v_situacao_hoje').catch(() => colaboradores);
+    colaboradores = await sbFetchSvc('v_situacao_hoje').catch(() => colaboradores);
     renderDisponibilidade();
 
     // Ao criar novo colaborador com faz_atendimento=true → inserir nos sábados futuros como novato
@@ -4648,9 +4755,9 @@ async function renderAlmoco() {
   const el = document.getElementById('almoco-container');
   el.innerHTML = '<div class="loading"><div class="spinner"></div> Carregando...</div>';
   try {
-    if (!colabsAdmin.length) {
-      colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido,ativo,faz_atendimento,periodo_almoco&order=nome.asc').catch(() => []);
-    }
+    // SEMPRE recarrega pra garantir periodo_almoco fresco (outras funções
+    // carregam colabsAdmin sem esse campo)
+    colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido,ativo,faz_atendimento,periodo_almoco&order=nome.asc').catch(() => []);
 
     // Calcular dias da semana (segunda a sexta) com base no offset
     const hoje = new Date();
@@ -4819,9 +4926,9 @@ async function alternarCelulaAlmoco(colabId, data, bloco) {
 async function gerarEscalaAlmocoAuto() {
   if (!confirm('Gerar escala de almoço automática para a semana visível? Isso vai sobrescrever os valores atuais.')) return;
   try {
-    if (!colabsAdmin.length) {
-      colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido,ativo,faz_atendimento,periodo_almoco&order=nome.asc').catch(() => []);
-    }
+    // SEMPRE recarrega pra garantir que tem periodo_almoco fresco do banco
+    // (outras funções carregam colabsAdmin sem esse campo, o que causaria bug)
+    colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido,ativo,faz_atendimento,periodo_almoco&order=nome.asc').catch(() => []);
     const ativos = colabsAdmin.filter(c => c.ativo !== false && c.faz_atendimento !== false);
 
     // Pegar semana visível
@@ -5736,7 +5843,7 @@ async function toggleCanalSemana(colabId, data, canalAtual) {
 
     if (data === HOJE_STR) {
       await upsertCanalEscala(colabId, novo);
-      colaboradores = await sbFetch('v_situacao_hoje').catch(() => colaboradores);
+      colaboradores = await sbFetchSvc('v_situacao_hoje').catch(() => colaboradores);
       renderCanais(); renderEscala(colaboradores);
     }
   } else {
