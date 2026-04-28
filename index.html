@@ -2649,6 +2649,20 @@ async function onDrop(ev, novoCanal) {
   // Otimista
   c.canal_hoje = novoCanal;
 
+  // Marcar exceção manual: durante o bloco de almoço atual, esta pessoa
+  // foi movida manualmente e não deve ser revertida pela escala_almoco.
+  // A exceção expira ao mudar de bloco (ex: 12-13 → 13-14, ou bloco → fora).
+  try {
+    const blocoAtual = (typeof blocoAlmocoAtual === 'function') ? blocoAlmocoAtual() : null;
+    if (blocoAtual) {
+      const chave = 'upseller_excecao_almoco';
+      const j = JSON.parse(localStorage.getItem(chave) || '{}');
+      if (!j[blocoAtual]) j[blocoAtual] = [];
+      if (!j[blocoAtual].includes(id)) j[blocoAtual].push(id);
+      localStorage.setItem(chave, JSON.stringify(j));
+    }
+  } catch(e) {}
+
   // Se foi para Sales, remover atribuição de número
   if (novoCanal === 'Sales') {
     await fetch(`${SB_URL}/rest/v1/numeros_atribuicoes?colaborador_id=eq.${id}&data=eq.${HOJE_STR}`, {
@@ -4917,6 +4931,18 @@ async function aplicarAlmocoAgora() {
     // Set de quem está em almoço agora
     const almocando = new Set();
 
+    // Carrega exceções manuais (pessoas movidas via drag-and-drop neste bloco)
+    let excecoes = [];
+    try {
+      const j = JSON.parse(localStorage.getItem('upseller_excecao_almoco') || '{}');
+      excecoes = j[blocoAtual] || [];
+      // Limpa exceções de blocos passados
+      const limpo = {};
+      if (blocoAtual && j[blocoAtual]) limpo[blocoAtual] = j[blocoAtual];
+      localStorage.setItem('upseller_excecao_almoco', JSON.stringify(limpo));
+    } catch(e) { excecoes = []; }
+    const excecaoSet = new Set(excecoes);
+
     if (blocoAtual) {
       // Aplicar canal previsto pro bloco atual
       const doBloco = registros.filter(r => r.bloco === blocoAtual);
@@ -4924,6 +4950,8 @@ async function aplicarAlmocoAgora() {
       for (const reg of doBloco) {
         const c = colaboradores.find(x => (x.id || x.colaborador_id) === reg.colaborador_id);
         if (!c) continue;
+        // PULA quem foi movido manualmente neste bloco — drag-and-drop tem prioridade
+        if (excecaoSet.has(reg.colaborador_id)) continue;
         if (reg.canal === 'Almoco') {
           almocando.add(reg.colaborador_id);
         } else {
