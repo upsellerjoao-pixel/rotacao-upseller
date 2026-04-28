@@ -4915,7 +4915,7 @@ let _almocoJaAplicado = false; // controla se já aplicamos o estado pelo menos 
 
 async function aplicarAlmocoAgora() {
   try {
-    const blocoAtual = blocoAlmocoAtual();
+    const blocoAtual = blocoAlmocoAtual() || ''; // normaliza null pra string vazia
     const blocoAnterior = localStorage.getItem('upseller_bloco_almoco') || '';
 
     // Sem mudança de bloco E já aplicamos pelo menos uma vez → não faz nada
@@ -4962,9 +4962,10 @@ async function aplicarAlmocoAgora() {
       if (mudancasCanal.length) {
         await Promise.all(mudancasCanal.map(m => upsertCanalEscala(m.colaborador_id, m.canal)));
       }
-    } else if (blocoAnterior) {
-      // Saiu do almoço → volta pra escala semanal de hoje
-      // (só faz isso se realmente saiu de um bloco; senão não toca em nada)
+    } else if (blocoAnterior && blocoAnterior !== '') {
+      // Saiu do almoço AGORA (transição bloco → fora) → volta pra escala semanal
+      // de hoje. Esta lógica roda apenas UMA vez quando há transição real;
+      // depois o blocoAnterior fica vazio e este else if não é executado novamente.
       const escSemHoje = await fetch(
         `${SB_URL}/rest/v1/escala_semanal?select=colaborador_id,canal&data=eq.${hoje}`,
         { headers: { 'apikey': SB_KEY_SVC || SB_KEY, 'Authorization': `Bearer ${SB_KEY_SVC || SB_KEY}` } }
