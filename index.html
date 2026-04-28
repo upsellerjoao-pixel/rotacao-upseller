@@ -372,6 +372,17 @@
   .canal-card-name { font-size: 13px; color: var(--text); font-weight: 500; }
   .canal-card-meta { font-size: 11px; color: var(--muted); margin-top: 1px; }
   .canal-card.home-marker { border-color: rgba(245,158,11,0.4); background: rgba(245,158,11,0.06); }
+  .canal-card.em-almoco { border-color: rgba(251,146,60,0.5); background: rgba(251,146,60,0.1); opacity: 0.85; }
+  .canal-card.em-almoco .canal-card-meta { color: #fb923c; }
+  .almoco-table th { padding: 6px 4px; }
+  .almoco-table td { padding: 6px 4px; }
+  .almoco-row-name { color: var(--text); font-weight: 500; padding-left: 10px !important; }
+  .almoco-cell { text-align: center; cursor: pointer; user-select: none; transition: all 0.15s; font-size: 12px; font-weight: 600; padding: 6px 8px !important; border-radius: 6px; }
+  .almoco-cell:hover { filter: brightness(1.2); }
+  .almoco-cell-vazio { color: var(--muted); font-weight: 400; }
+  .almoco-cell-wpp { background: rgba(34,197,94,0.18); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
+  .almoco-cell-sales { background: rgba(245,158,11,0.18); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+  .almoco-cell-almoco { background: rgba(251,146,60,0.2); color: #fb923c; border: 1px solid rgba(251,146,60,0.35); }
 
   @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -846,6 +857,9 @@
   }
   .escala-cell.wpp { background: rgba(16,185,129,0.15); color: #34d399; border-color: rgba(16,185,129,0.3); }
   .escala-cell.sales { background: rgba(245,158,11,0.15); color: #fbbf24; border-color: rgba(245,158,11,0.3); }
+  .escala-cell.almoco { background: rgba(251,146,60,0.18); color: #fb923c; border-color: rgba(251,146,60,0.35); }
+  .escala-cell.vazio { background: transparent; color: var(--muted); border-color: transparent; cursor: pointer; }
+  .escala-cell.vazio:hover { background: rgba(255,255,255,0.04); }
   .escala-cell.novato { background: rgba(100,116,139,0.15); color: var(--muted); cursor: not-allowed; }
   .escala-cell:hover:not(.novato) { opacity: 0.75; transform: scale(0.96); }
   .escala-semana-table tr.hoje-row td { background: rgba(59,130,246,0.06); }
@@ -1121,6 +1135,7 @@
       <button class="gestor-subtab active" data-tab="operacional" onclick="showGestorTab('operacional')">📋 Operacional</button>
       <button class="gestor-subtab" data-tab="colaboradores" onclick="showGestorTab('colaboradores')">👥 Colaboradores</button>
       <button class="gestor-subtab" data-tab="escala-semanal" onclick="showGestorTab('escala-semanal')">📅 Escala Semanal</button>
+      <button class="gestor-subtab" data-tab="almoco" onclick="showGestorTab('almoco')">🍽️ Almoço</button>
       <button class="gestor-subtab" data-tab="rotacao-home" onclick="showGestorTab('rotacao-home')">🏠 Rotação Home</button>
       <button class="gestor-subtab" data-tab="sabados" onclick="showGestorTab('sabados')">🗓️ Sábados</button>
       <button class="gestor-subtab" data-tab="numeros" onclick="showGestorTab('numeros')">📱 Números</button>
@@ -1245,6 +1260,22 @@
         <div class="escala-semana-grid">
           <div id="escala-semana-container"><div class="loading"><div class="spinner"></div> Carregando...</div></div>
         </div>
+      </div>
+    </div>
+
+    <!-- ── SUB-PÁGINA: ALMOÇO ── -->
+    <div id="gestortab-almoco" class="gestor-subpage">
+      <div class="admin-section">
+        <div class="admin-header-row">
+          <div>
+            <div class="admin-section-title">🍽️ Escala de Almoço</div>
+            <div class="admin-section-sub">Defina em qual canal cada colaborador fica durante o almoço (turnos 12h–13h e 13h–14h). Clique nas células para alternar.</div>
+          </div>
+        </div>
+        <div class="info-box">
+          💡 <strong>Como funciona:</strong> Quem almoça num turno fica com 🍽️ nesse bloco. Os outros mantêm o canal da Escala Semanal por padrão, mas você pode mudar (ex: pôr alguém no Sales pra cobrir a saída de outros). A escala é aplicada automaticamente na hora certa e volta ao normal quando o almoço acaba.
+        </div>
+        <div id="almoco-container"><div class="loading"><div class="spinner"></div> Carregando...</div></div>
       </div>
     </div>
 
@@ -1516,6 +1547,7 @@
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--subtle);"><input type="checkbox" class="perm-check" value="operacional" style="width:14px;height:14px;"> 📋 Operacional</label>
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--subtle);"><input type="checkbox" class="perm-check" value="colaboradores" style="width:14px;height:14px;"> 👥 Colaboradores</label>
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--subtle);"><input type="checkbox" class="perm-check" value="escala-semanal" style="width:14px;height:14px;"> 📅 Escala Semanal</label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--subtle);"><input type="checkbox" class="perm-check" value="almoco" style="width:14px;height:14px;"> 🍽️ Almoço</label>
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--subtle);"><input type="checkbox" class="perm-check" value="rotacao-home" style="width:14px;height:14px;"> 🏠 Rotação Home</label>
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--subtle);"><input type="checkbox" class="perm-check" value="sabados" style="width:14px;height:14px;"> 🗓️ Sábados</label>
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--subtle);"><input type="checkbox" class="perm-check" value="numeros" style="width:14px;height:14px;"> 📱 Números</label>
@@ -1990,6 +2022,7 @@ function aplicarSessao() {
     Notification.requestPermission();
   }
   setTimeout(iniciarRealtime, 500); // pequeno delay para garantir que loadAll já iniciou
+  setTimeout(iniciarPollingAlmoco, 1000); // polling de almoço a cada 5 min
 }
 
 // Ativa VISUALMENTE a aba salva (só CSS, sem chamar funções de render).
@@ -2016,7 +2049,7 @@ function ativarAbaVisualmente() {
     // Se for Gestor, trocar sub-aba também (só CSS)
     if (p === 'gestor') {
       const subtab = localStorage.getItem('upseller_last_gestor_tab');
-      const validSubtabs = ['operacional','colaboradores','escala-semanal','rotacao-home','sabados','numeros','grupos','vips','treinamentos','auloes'];
+      const validSubtabs = ['operacional','colaboradores','escala-semanal','almoco','rotacao-home','sabados','numeros','grupos','vips','treinamentos','auloes'];
       // Se a sub-aba salva não é permitida pro usuário, fallback pra primeira permitida
       let alvo = subtab;
       if (alvo && !podeAcessarSubAba(alvo)) {
@@ -2081,7 +2114,7 @@ function restaurarUltimaPagina() {
       // Se estava no Gestor, restaura também a sub-aba específica
       if (p === 'gestor') {
         const subtab = localStorage.getItem('upseller_last_gestor_tab');
-        const validSubtabs = ['operacional','colaboradores','escala-semanal','rotacao-home','sabados','numeros','grupos','vips','treinamentos','auloes'];
+        const validSubtabs = ['operacional','colaboradores','escala-semanal','almoco','rotacao-home','sabados','numeros','grupos','vips','treinamentos','auloes'];
         if (subtab && validSubtabs.includes(subtab)) {
           showGestorTab(subtab);
         }
@@ -2305,16 +2338,30 @@ async function toggleDisp(id, atual) {
 // 5. Redistribuir VIPs igualitariamente (por quantidade, não por peso)
 // 6. Aplicar apenas mudanças reais (grupos que trocaram de dono)
 // ══════════════════════════════════════════════════════════════════════
+let _redistribuindo = false;
 async function redistribuirTudo() {
+  if (_redistribuindo) {
+    console.log('[redistribuirTudo] já em andamento, ignorando chamada duplicada');
+    return;
+  }
+  _redistribuindo = true;
+  try {
+    return await _redistribuirTudoInner();
+  } finally {
+    _redistribuindo = false;
+  }
+}
+
+async function _redistribuirTudoInner() {
   if (!SB_KEY_SVC) {
     renderCanais(); renderEscala(colaboradores);
     renderNumeros(); renderVisao(colaboradores, auloesData, sabadosData, vipsData);
     return;
   }
 
-  // Quem está disponível no WhatsApp
+  // Quem está disponível no WhatsApp (excluindo quem está em almoço agora)
   const todosDisp = colaboradores
-    .filter(c => c.disponivel_hoje !== false && c.ativo !== false && c.faz_atendimento !== false)
+    .filter(c => c.disponivel_hoje !== false && c.ativo !== false && c.faz_atendimento !== false && !c._em_almoco)
     .map(c => ({ ...c, _cid: c.id || c.colaborador_id }));
   const dispWpp = todosDisp.filter(c => (c.canal_hoje || 'WhatsApp') !== 'Sales');
   const dispIds = new Set(dispWpp.map(d => d._cid));
@@ -2545,16 +2592,19 @@ function renderCanais() {
     const cid = c.id || c.colaborador_id;
     const nGrupos = gruposData.filter(g => g.colaborador_id === cid && g.peso < 3).length;
     const temHome = gruposData.some(g => g.colaborador_id === cid && g.peso >= 3);
-    const meta = c.canal_hoje === 'Sales'
-      ? 'SalesSmartly — sem grupos'
-      : `${nGrupos} grupo${nGrupos===1?'':'s'}${temHome ? ' • 🏠 Home' : ''}`;
-    return `<div class="canal-card ${temHome?'home-marker':''}" draggable="true"
+    const emAlmoco = c._em_almoco === true;
+    const meta = emAlmoco
+      ? '🍽️ Em almoço — grupos cedidos'
+      : c.canal_hoje === 'Sales'
+        ? 'SalesSmartly — sem grupos'
+        : `${nGrupos} grupo${nGrupos===1?'':'s'}${temHome ? ' • 🏠 Home' : ''}`;
+    return `<div class="canal-card ${temHome?'home-marker':''}${emAlmoco?' em-almoco':''}" draggable="true"
                  ondragstart="onDragStart(event,'${cid}')"
                  ondragend="onDragEnd(event)"
                  data-id="${cid}">
       <div class="canal-card-avatar">${(c.nome||'?')[0]}</div>
       <div class="canal-card-info">
-        <div class="canal-card-name">${c.nome}</div>
+        <div class="canal-card-name">${c.nome}${emAlmoco ? ' <span style="color:#f59e0b;font-size:11px;">🍽️</span>' : ''}</div>
         <div class="canal-card-meta">${meta}</div>
       </div>
     </div>`;
@@ -3435,11 +3485,24 @@ function scrollRotacao(dir) {
 // Tabela: escala_semanal com UNIQUE(colaborador_id, data)
 async function sincronizarEscalaSemanalHoje(escalaAtual) {
   try {
+    // Só sincroniza UMA VEZ por dia. Se já foi sincronizado hoje, não roda de novo.
+    // Isso evita que ações manuais do gestor (drag and drop pra Sales/WPP no
+    // Operacional) sejam sobrescritas pela escala semanal a cada loadAll/F5.
+    const chaveSync = `upseller_sync_escala_${HOJE_STR}`;
+    if (localStorage.getItem(chaveSync) === '1') {
+      return; // Já sincronizado hoje — ações manuais prevalecem
+    }
+
     // Buscar registros da escala semanal para hoje (usa service key para ignorar RLS)
     const escSemanal = await fetch(
       `${SB_URL}/rest/v1/escala_semanal?select=colaborador_id,canal&data=eq.${HOJE_STR}`,
       { headers: { 'apikey': SB_KEY_SVC || SB_KEY, 'Authorization': `Bearer ${SB_KEY_SVC || SB_KEY}` } }
     ).then(r => r.ok ? r.json() : []).catch(() => []);
+
+    // Marca como sincronizado IMEDIATAMENTE (mesmo se não houver registros)
+    // — assim mesmo dias sem escala_semanal não tentam sincronizar de novo.
+    localStorage.setItem(chaveSync, '1');
+
     if (!escSemanal.length) return; // Sem planejamento para hoje, não faz nada
 
     // Para cada colaborador na escala semanal, verificar se canal difere do atual
@@ -3944,7 +4007,7 @@ function showGestorTab(tab) {
   // Se o usuário não tem permissão na sub-aba solicitada, redireciona
   // para a primeira sub-aba que ele pode acessar
   if (!podeAcessarSubAba(tab)) {
-    const ordem = ['operacional','colaboradores','escala-semanal','rotacao-home','sabados','numeros','grupos','vips','treinamentos','auloes'];
+    const ordem = ['operacional','colaboradores','escala-semanal','almoco','rotacao-home','sabados','numeros','grupos','vips','treinamentos','auloes'];
     const primeira = ordem.find(t => podeAcessarSubAba(t));
     if (primeira && primeira !== tab) { showGestorTab(primeira); return; }
     // Sem nenhuma permissão: não faz nada
@@ -3961,6 +4024,7 @@ function showGestorTab(tab) {
   // Carregar dados ao abrir cada aba
   if (tab === 'colaboradores') renderAdminColabs();
   if (tab === 'escala-semanal') { semanaOffset = 0; atualizarNavSemana(); renderEscalaSemanal(); }
+  if (tab === 'almoco') renderAlmoco();
   if (tab === 'rotacao-home') renderAdminRotacaoHome();
   if (tab === 'sabados') renderAdminSabados();
   if (tab === 'numeros') renderAdminNumeros();
@@ -4546,6 +4610,373 @@ async function removerVip(id, nome) {
   const ok = await sbDelete('vips', `id=eq.${id}`);
   if (ok) { showToast('VIP removido.'); await renderAdminVips(); }
   else showToast('Erro ao remover.', 'error');
+}
+
+// ── ESCALA DE ALMOÇO ─────────────────────────────────────
+// Permite definir o canal de cada colaborador durante cada bloco de almoço:
+//   - Bloco 12-13 (12h às 13h)
+//   - Bloco 13-14 (13h às 14h)
+//
+// Quem almoça naquele bloco fica como 🍽️. Os demais ficam em WhatsApp ou
+// Sales conforme planejado pelo gestor (pode ser diferente da escala
+// semanal — útil pra cobrir Sales quando o pessoal sai pra almoçar).
+//
+// Quando o bloco termina, a escala semanal volta a valer.
+//
+// Tabela: escala_almoco_diaria (colaborador_id, data, bloco, canal)
+// O período de almoço de cada um vem do campo colaboradores.periodo_almoco.
+
+let _pollingAlmoco = null;
+let almocoSemOffset = 0; // semana atual (0 = atual, +1 = próxima, -1 = anterior)
+let almocoSemanaBD = []; // cache da escala_almoco_diaria da semana visível
+
+async function renderAlmoco() {
+  const el = document.getElementById('almoco-container');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div> Carregando...</div>';
+  try {
+    if (!colabsAdmin.length) {
+      colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido,ativo,faz_atendimento,periodo_almoco&order=nome.asc').catch(() => []);
+    }
+
+    // Calcular dias da semana (segunda a sexta) com base no offset
+    const hoje = new Date();
+    hoje.setHours(0,0,0,0);
+    const dow = hoje.getDay() || 7; // domingo = 7
+    const segHoje = new Date(hoje);
+    segHoje.setDate(hoje.getDate() - (dow - 1) + (almocoSemOffset * 7));
+    const dias = [];
+    for (let i = 0; i < 5; i++) { // segunda a sexta
+      const d = new Date(segHoje);
+      d.setDate(segHoje.getDate() + i);
+      dias.push({
+        date: d,
+        data: d.toISOString().slice(0,10),
+        label: ['SEG','TER','QUA','QUI','SEX'][i],
+        dia: d.getDate(),
+        mes: d.getMonth() + 1,
+      });
+    }
+    const dataIni = dias[0].data;
+    const dataFim = dias[dias.length-1].data;
+
+    // Buscar escala de almoço da semana
+    almocoSemanaBD = await fetch(
+      `${SB_URL}/rest/v1/escala_almoco_diaria?select=colaborador_id,data,bloco,canal&data=gte.${dataIni}&data=lte.${dataFim}`,
+      { headers: { 'apikey': SB_KEY_SVC || SB_KEY, 'Authorization': `Bearer ${SB_KEY_SVC || SB_KEY}` } }
+    ).then(r => r.ok ? r.json() : []).catch(() => []);
+
+    const ativos = colabsAdmin
+      .filter(c => c.ativo !== false && c.faz_atendimento !== false)
+      .sort((a,b) => (a.apelido || a.nome).localeCompare(b.apelido || b.nome));
+
+    // Lookup helper
+    const getCanal = (cid, data, bloco) => {
+      const r = almocoSemanaBD.find(x => x.colaborador_id === cid && x.data === data && x.bloco === bloco);
+      return r?.canal || null; // null = ainda não definido
+    };
+
+    // Header com 5 dias × 2 blocos (com separador entre dias)
+    const headerCells = dias.map((d, idx) =>
+      `<th colspan="2" style="text-align:center;border-bottom:1px solid var(--border);padding:8px 4px;${idx > 0 ? 'border-left:1px solid var(--border);' : ''}">
+        <div style="font-size:11px;color:var(--muted);">${d.label}</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text);">${d.dia}/${d.mes}</div>
+      </th>`
+    ).join('');
+
+    const subHeader = dias.map((_, idx) =>
+      `<th style="font-size:10px;color:#fb923c;text-align:center;padding:4px 2px;${idx > 0 ? 'border-left:1px solid var(--border);' : ''}">12-13</th>
+       <th style="font-size:10px;color:#fb923c;text-align:center;padding:4px 2px;">13-14</th>`
+    ).join('');
+
+    // Linhas dos colaboradores
+    const linhas = ativos.map(c => {
+      const cells = dias.map((d, diaIdx) => {
+        const feriado = isFeriado(d.data);
+        return ['12-13', '13-14'].map(bloco => {
+          const borderLeft = (bloco === '12-13' && diaIdx > 0) ? 'border-left:1px solid var(--border);' : '';
+          if (feriado) {
+            return `<td style="text-align:center;padding:6px 4px;${borderLeft}">
+              <span class="escala-cell" style="background:rgba(239,68,68,0.12);color:#f87171;border-color:rgba(239,68,68,0.3);cursor:default;" title="${nomeFeriado(d.data)}">🎉 Feriado</span>
+            </td>`;
+          }
+          const canal = getCanal(c.id, d.data, bloco);
+          let label, cls;
+          if (canal === 'Almoco') { label = '🍽️ Almoço'; cls = 'almoco'; }
+          else if (canal === 'Sales') { label = '📨 Sales'; cls = 'sales'; }
+          else if (canal === 'WhatsApp') { label = '💬 WPP'; cls = 'wpp'; }
+          else { label = '—'; cls = 'vazio'; }
+          return `<td style="text-align:center;padding:6px 4px;${borderLeft}">
+            <span class="escala-cell ${cls}" onclick="alternarCelulaAlmoco('${c.id}','${d.data}','${bloco}')" title="Clique para alternar">${label}</span>
+          </td>`;
+        }).join('');
+      }).join('');
+      return `<tr>
+        <td style="color:var(--text);font-weight:500;padding:10px 14px;">${c.apelido || c.nome}</td>
+        ${cells}
+      </tr>`;
+    }).join('');
+
+    el.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
+        <div style="font-size:13px;color:var(--muted);">
+          Semana de ${dias[0].dia}/${dias[0].mes} a ${dias[4].dia}/${dias[4].mes}
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-outline" onclick="navegarSemanaAlmoco(-1)">‹ Anterior</button>
+          <button class="btn btn-outline" onclick="navegarSemanaAlmoco(1)">Próxima ›</button>
+          <button class="btn btn-primary" onclick="gerarEscalaAlmocoAuto()">⚡ Gerar automático</button>
+        </div>
+      </div>
+      <div class="info-box" style="background:rgba(96,165,250,0.08);border-color:rgba(96,165,250,0.25);margin-bottom:14px;">
+        💡 <strong>Como usar:</strong> Clique em cada célula pra alternar entre 💬 WhatsApp, 💼 Sales e 🍽️ Almoço. O turno de almoço de cada um (12-13 ou 13-14) vem do cadastro do colaborador. "Gerar automático" preenche tudo: 🍽️ no turno do almoço de cada um, 💬 ou 💼 nos outros blocos conforme a escala semanal.
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="admin-table almoco-table" style="font-size:12px;min-width:780px;">
+          <thead>
+            <tr>
+              <th rowspan="2" style="text-align:left;border-bottom:1px solid var(--border);padding:8px;">Colaborador</th>
+              ${headerCells}
+            </tr>
+            <tr>${subHeader}</tr>
+          </thead>
+          <tbody>${linhas}</tbody>
+        </table>
+      </div>
+    `;
+  } catch(e) { el.innerHTML = `<div class="error-msg">Erro: ${e.message}</div>`; }
+}
+
+function navegarSemanaAlmoco(dir) {
+  almocoSemOffset += dir;
+  renderAlmoco();
+}
+
+// Ciclo de canais: vazio → WhatsApp → Sales → Almoço → vazio (delete)
+async function alternarCelulaAlmoco(colabId, data, bloco) {
+  if (isFeriado(data)) return; // não permite alterar feriados
+  const reg = almocoSemanaBD.find(x => x.colaborador_id === colabId && x.data === data && x.bloco === bloco);
+  const atual = reg?.canal || null;
+  const proximo = atual === null ? 'WhatsApp'
+                : atual === 'WhatsApp' ? 'Sales'
+                : atual === 'Sales' ? 'Almoco'
+                : null; // 'Almoco' → null (apaga registro)
+
+  try {
+    if (proximo === null) {
+      // Deletar
+      await fetch(`${SB_URL}/rest/v1/escala_almoco_diaria?colaborador_id=eq.${colabId}&data=eq.${data}&bloco=eq.${bloco}`, {
+        method: 'DELETE',
+        headers: { 'apikey': SB_KEY_SVC, 'Authorization': `Bearer ${SB_KEY_SVC}` }
+      });
+      almocoSemanaBD = almocoSemanaBD.filter(x => !(x.colaborador_id === colabId && x.data === data && x.bloco === bloco));
+    } else {
+      // Upsert
+      const r = await fetch(`${SB_URL}/rest/v1/escala_almoco_diaria?on_conflict=colaborador_id,data,bloco`, {
+        method: 'POST',
+        headers: {
+          'apikey': SB_KEY_SVC,
+          'Authorization': `Bearer ${SB_KEY_SVC}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates,return=minimal'
+        },
+        body: JSON.stringify({ colaborador_id: colabId, data, bloco, canal: proximo })
+      });
+      if (!r.ok) {
+        const t = await r.text();
+        console.error('Erro almoço diário:', r.status, t);
+        showToast('Erro ao salvar: ' + t.slice(0,80), 'error');
+        return;
+      }
+      // Atualiza cache local
+      if (reg) reg.canal = proximo;
+      else almocoSemanaBD.push({ colaborador_id: colabId, data, bloco, canal: proximo });
+    }
+    await renderAlmoco();
+  } catch(e) {
+    console.error('alternarCelulaAlmoco erro:', e);
+    showToast('Erro: ' + e.message, 'error');
+  }
+}
+
+// Gera escala automática para a semana visível:
+// - Quem almoça em 12-13 → 🍽️ no bloco 12-13
+// - Quem almoça em 13-14 → 🍽️ no bloco 13-14
+// - Outros blocos: aplica canal da escala semanal (se não houver, default WhatsApp)
+async function gerarEscalaAlmocoAuto() {
+  if (!confirm('Gerar escala de almoço automática para a semana visível? Isso vai sobrescrever os valores atuais.')) return;
+  try {
+    if (!colabsAdmin.length) {
+      colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido,ativo,faz_atendimento,periodo_almoco&order=nome.asc').catch(() => []);
+    }
+    const ativos = colabsAdmin.filter(c => c.ativo !== false && c.faz_atendimento !== false);
+
+    // Pegar semana visível
+    const hoje = new Date();
+    hoje.setHours(0,0,0,0);
+    const dow = hoje.getDay() || 7;
+    const segHoje = new Date(hoje);
+    segHoje.setDate(hoje.getDate() - (dow - 1) + (almocoSemOffset * 7));
+    const datas = [];
+    for (let i = 0; i < 5; i++) {
+      const d = new Date(segHoje);
+      d.setDate(segHoje.getDate() + i);
+      datas.push(d.toISOString().slice(0,10));
+    }
+    const dataIni = datas[0], dataFim = datas[datas.length-1];
+
+    // Buscar escala_semanal pra saber o canal padrão
+    const escSemanal = await fetch(
+      `${SB_URL}/rest/v1/escala_semanal?select=colaborador_id,data,canal&data=gte.${dataIni}&data=lte.${dataFim}`,
+      { headers: { 'apikey': SB_KEY_SVC, 'Authorization': `Bearer ${SB_KEY_SVC}` } }
+    ).then(r => r.ok ? r.json() : []).catch(() => []);
+
+    const canalSemanal = (cid, data) => {
+      const r = escSemanal.find(x => x.colaborador_id === cid && x.data === data);
+      return r?.canal || 'WhatsApp';
+    };
+
+    // Limpar registros existentes da semana (delete em massa)
+    await fetch(`${SB_URL}/rest/v1/escala_almoco_diaria?data=gte.${dataIni}&data=lte.${dataFim}`, {
+      method: 'DELETE',
+      headers: { 'apikey': SB_KEY_SVC, 'Authorization': `Bearer ${SB_KEY_SVC}` }
+    });
+
+    // Montar registros novos (pulando feriados)
+    const inserts = [];
+    for (const c of ativos) {
+      const periodo = String(c.periodo_almoco || '13');
+      const blocoAlmoco = periodo === '12' ? '12-13' : '13-14';
+      const blocoOutro  = periodo === '12' ? '13-14' : '12-13';
+      for (const data of datas) {
+        if (isFeriado(data)) continue; // pula feriados
+        const canalBase = canalSemanal(c.id, data);
+        // Bloco do almoço dele: 🍽️
+        inserts.push({ colaborador_id: c.id, data, bloco: blocoAlmoco, canal: 'Almoco' });
+        // Outro bloco: canal da escala semanal
+        inserts.push({ colaborador_id: c.id, data, bloco: blocoOutro, canal: canalBase });
+      }
+    }
+
+    // Insert em massa
+    const r = await fetch(`${SB_URL}/rest/v1/escala_almoco_diaria`, {
+      method: 'POST',
+      headers: {
+        'apikey': SB_KEY_SVC,
+        'Authorization': `Bearer ${SB_KEY_SVC}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(inserts)
+    });
+    if (!r.ok) {
+      const t = await r.text();
+      console.error('Gerar auto erro:', r.status, t);
+      showToast('Erro ao gerar: ' + t.slice(0,80), 'error');
+      return;
+    }
+    showToast(`✓ Escala de almoço gerada (${inserts.length} registros)`);
+    await renderAlmoco();
+  } catch(e) {
+    console.error('gerarEscalaAlmocoAuto erro:', e);
+    showToast('Erro: ' + e.message, 'error');
+  }
+}
+
+// Detecta o bloco de almoço atual com base na hora do dia
+function blocoAlmocoAtual() {
+  const agora = new Date();
+  const h = agora.getHours();
+  const m = agora.getMinutes();
+  if (h === 12 && m < 60) return '12-13';
+  if (h === 13 && m < 60) return '13-14';
+  return null; // fora dos horários de almoço
+}
+
+// Aplica a regra de almoço a cada 5 min:
+// - Detecta o bloco atual (12-13, 13-14 ou null)
+// - Se mudou de bloco em relação à última verificação, aplica os canais previstos
+//   pra esse bloco e marca quem está "almoçando" como _em_almoco=true
+// - Se saiu de qualquer bloco (null), volta tudo ao normal
+let _almocoJaAplicado = false; // controla se já aplicamos o estado pelo menos uma vez na sessão
+
+async function aplicarAlmocoAgora() {
+  try {
+    const blocoAtual = blocoAlmocoAtual();
+    const blocoAnterior = localStorage.getItem('upseller_bloco_almoco') || '';
+
+    // Sem mudança de bloco E já aplicamos pelo menos uma vez → não faz nada
+    if (blocoAtual === blocoAnterior && _almocoJaAplicado) return;
+
+    // Houve transição de bloco OU é a primeira execução → carregar e aplicar
+    const hoje = new Date().toISOString().slice(0,10);
+    const registros = await fetch(
+      `${SB_URL}/rest/v1/escala_almoco_diaria?select=colaborador_id,bloco,canal&data=eq.${hoje}`,
+      { headers: { 'apikey': SB_KEY_SVC || SB_KEY, 'Authorization': `Bearer ${SB_KEY_SVC || SB_KEY}` } }
+    ).then(r => r.ok ? r.json() : []).catch(() => []);
+
+    // Set de quem está em almoço agora
+    const almocando = new Set();
+
+    if (blocoAtual) {
+      // Aplicar canal previsto pro bloco atual
+      const doBloco = registros.filter(r => r.bloco === blocoAtual);
+      const mudancasCanal = [];
+      for (const reg of doBloco) {
+        const c = colaboradores.find(x => (x.id || x.colaborador_id) === reg.colaborador_id);
+        if (!c) continue;
+        if (reg.canal === 'Almoco') {
+          almocando.add(reg.colaborador_id);
+        } else {
+          const canalAtual = c.canal_hoje || 'WhatsApp';
+          if (canalAtual !== reg.canal) mudancasCanal.push({ colaborador_id: reg.colaborador_id, canal: reg.canal });
+        }
+      }
+      if (mudancasCanal.length) {
+        await Promise.all(mudancasCanal.map(m => upsertCanalEscala(m.colaborador_id, m.canal)));
+      }
+    } else if (blocoAnterior) {
+      // Saiu do almoço → volta pra escala semanal de hoje
+      // (só faz isso se realmente saiu de um bloco; senão não toca em nada)
+      const escSemHoje = await fetch(
+        `${SB_URL}/rest/v1/escala_semanal?select=colaborador_id,canal&data=eq.${hoje}`,
+        { headers: { 'apikey': SB_KEY_SVC || SB_KEY, 'Authorization': `Bearer ${SB_KEY_SVC || SB_KEY}` } }
+      ).then(r => r.ok ? r.json() : []).catch(() => []);
+      const mudancas = [];
+      for (const reg of escSemHoje) {
+        const c = colaboradores.find(x => (x.id || x.colaborador_id) === reg.colaborador_id);
+        if (!c) continue;
+        const canalAtual = c.canal_hoje || 'WhatsApp';
+        if (canalAtual !== reg.canal) mudancas.push({ colaborador_id: reg.colaborador_id, canal: reg.canal });
+      }
+      if (mudancas.length) {
+        await Promise.all(mudancas.map(m => upsertCanalEscala(m.colaborador_id, m.canal)));
+      }
+    }
+
+    // SEMPRE resetar _em_almoco em todo mundo, e só marcar quem realmente está
+    for (const c of (colaboradores || [])) {
+      const cid = c.id || c.colaborador_id;
+      c._em_almoco = almocando.has(cid);
+    }
+
+    localStorage.setItem('upseller_bloco_almoco', blocoAtual || '');
+    _almocoJaAplicado = true;
+    console.log('[Almoço] Bloco: ' + (blocoAnterior || 'nenhum') + ' → ' + (blocoAtual || 'fora') + ' (' + almocando.size + ' almoçando)');
+
+    // Só dispara redistribuição se houve mudança real
+    if (blocoAtual !== blocoAnterior || almocando.size > 0) {
+      await redistribuirTudo();
+    } else {
+      // Sem mudança real, apenas re-renderiza
+      renderCanais();
+    }
+  } catch(e) { console.warn('[Almoço] Erro:', e.message); }
+}
+
+function iniciarPollingAlmoco() {
+  if (_pollingAlmoco) clearInterval(_pollingAlmoco);
+  setTimeout(aplicarAlmocoAgora, 10000); // primeira após 10s
+  _pollingAlmoco = setInterval(aplicarAlmocoAgora, 5 * 60 * 1000); // a cada 5min
 }
 
 // ── ROTAÇÃO HOME ─────────────────────────────────────────
