@@ -3617,6 +3617,7 @@ async function loadAll() {
         const subtab = localStorage.getItem('upseller_last_gestor_tab');
         if (subtab === 'colaboradores') renderAdminColabs();
         else if (subtab === 'escala-semanal') { semanaOffset = 0; atualizarNavSemana(); renderEscalaSemanal(); }
+        else if (subtab === 'almoco') renderAlmoco();
         else if (subtab === 'rotacao-home') renderAdminRotacaoHome();
         else if (subtab === 'sabados') renderAdminSabados();
         else if (subtab === 'numeros') renderAdminNumeros();
