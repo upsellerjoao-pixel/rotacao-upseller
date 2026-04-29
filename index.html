@@ -1862,7 +1862,10 @@ document.getElementById('date-display').textContent =
 // ══════════════════════════════════════════════════════════════════════
 let colaboradores    = [];
 let gruposData       = [];
-let parceirosData    = [];
+// parceirosData removida — a tabela `grupos_parceiros` nunca existiu no banco.
+// Era código preparatório de uma feature de "grupos de parceiros" que nunca foi
+// implementada. Mantê-la causava 404 no Console a cada loadAll.
+let parceirosData    = []; // sempre vazio; mantido apenas pra evitar undefined em código legado
 let vipsData         = [];
 let auloesData       = [];
 let sabadosData      = [];
@@ -2950,7 +2953,7 @@ async function distribuirGrupos() {
 
     // Recarregar
     gruposData    = await sbFetch('v_grupos_colaborador');
-    parceirosData = await sbFetch('grupos_parceiros?select=id,numero_grupo,nome_grupo,colaborador_id,peso&order=numero_grupo.asc').catch(() => []);
+    // grupos_parceiros: removido — tabela não existe no banco
     vipsData      = await sbFetch('vips?select=id,nome_conta,colaborador_id,dono_fixo_id,peso,vip_em_rotacao&order=nome_conta.asc').catch(() => []);
     numerosAtrib  = await sbFetch('v_numeros_hoje').catch(() => []);
     renderEscala(colaboradores);
@@ -3563,7 +3566,7 @@ async function loadAll() {
   if (!currentColaborador) { mostrarLogin(); return; }
 
   try {
-    const [escala, auloes, sabados, rotHome, homeHojeView, grupos, parceiros, vips, treinamentos, numeros, numAtrib] = await Promise.all([
+    const [escala, auloes, sabados, rotHome, homeHojeView, grupos, vips, treinamentos, numeros, numAtrib] = await Promise.all([
       sbFetchSvc('v_situacao_hoje'),
       sbFetch('v_aulao_hoje_semana').catch(() => sbFetch('auloes?select=*,colaboradores(nome,apelido)&order=data.asc&limit=10')),
       sbFetch(`rotacao_sabados?select=data,colaborador_id&data=gte.${HOJE_STR}&order=data.asc&limit=200`).catch(() => []),
@@ -3572,7 +3575,7 @@ async function loadAll() {
       ),
       sbFetch('v_rotacao_home_hoje').catch(() => []),
       sbFetch('v_grupos_colaborador').catch(() => []),
-      sbFetch('grupos_parceiros?select=id,numero_grupo,nome_grupo,colaborador_id,peso&order=numero_grupo.asc').catch(() => []),
+      // grupos_parceiros: removido — tabela não existe no banco
       sbFetch('vips?select=id,nome_conta,colaborador_id,dono_fixo_id,peso,vip_em_rotacao&order=nome_conta.asc').catch(() => []),
       sbFetch('v_treinamentos').catch(() => []),
       sbFetch('numeros_whatsapp?select=id,nome,numero&order=nome.asc').catch(() => []),
@@ -3581,7 +3584,7 @@ async function loadAll() {
 
     colaboradores = escala;
     gruposData    = grupos;
-    parceirosData = Array.isArray(parceiros) ? parceiros : [];
+    parceirosData = []; // tabela não existe; sempre vazio
     vipsData      = Array.isArray(vips) ? vips : [];
     auloesData    = Array.isArray(auloes) ? auloes : [];
     sabadosData   = Array.isArray(sabados) ? sabados : [];
