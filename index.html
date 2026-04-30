@@ -4940,27 +4940,15 @@ Regra:
       const wppDoDia = elegiveis.filter(c => canalSemanal(c.id, data) === 'WhatsApp');
       const salesDoDia = elegiveis.filter(c => canalSemanal(c.id, data) === 'Sales');
 
-      // Distribui o WPP em 2 turnos: prefere quem tem periodo_almoco='12' no 12-13
-      const wppPref12 = wppDoDia.filter(c => String(c.periodo_almoco || '13') === '12');
-      const wppPref13 = wppDoDia.filter(c => String(c.periodo_almoco || '13') !== '12');
-
-      const wpp12 = []; // quem almoça 12-13
-      const wpp13 = []; // quem almoça 13-14
-
-      // Preenche 12-13 com pref12 primeiro até 2
-      for (const c of wppPref12) { if (wpp12.length < 2) wpp12.push(c); else wpp13.push(c); }
-      // Preenche 13-14 com pref13 até atingir 2
-      for (const c of wppPref13) { if (wpp13.length < 2) wpp13.push(c); else wpp12.push(c); }
-
-      // Se ainda tiver desequilíbrio (ex: 4 pref12 e 0 pref13), redistribui
-      while (wpp12.length > 2 && wpp13.length < 2) wpp13.push(wpp12.pop());
-      while (wpp13.length > 2 && wpp12.length < 2) wpp12.push(wpp13.pop());
-
+      // Regra: SEMPRE respeitar o periodo_almoco do cadastro.
+      // Se a escolha do WPP foi feita certo (com balanceamento por horário),
+      // a distribuição vai cair naturalmente em ~2/2. Se ficar desbalanceado
+      // (ex: 4 pref12 e 0 pref13 num dia), respeita assim mesmo — a culpa é
+      // de quem escolheu pra WPP, não vai forçar Raphael a almoçar 13-14
+      // se ele almoça 12-13.
       const blocoAlmocoDe = new Map(); // colaborador_id → '12-13' ou '13-14'
-      wpp12.forEach(c => blocoAlmocoDe.set(c.id, '12-13'));
-      wpp13.forEach(c => blocoAlmocoDe.set(c.id, '13-14'));
-      // Sales: usa preferência do cadastro
-      for (const c of salesDoDia) {
+      // TODOS os elegíveis (WPP + Sales) seguem o periodo_almoco do cadastro
+      for (const c of elegiveis) {
         const periodo = String(c.periodo_almoco || '13');
         blocoAlmocoDe.set(c.id, periodo === '12' ? '12-13' : '13-14');
       }
@@ -5964,14 +5952,48 @@ Quem é Home do dia entra automaticamente no WhatsApp.
       wppHoje.add(homeId);
     }
 
-    // Vagas 2-4: ordena candidatos por wppCount (menos vezes em WPP primeiro) e completa
+    // Vagas 2-4: completar WPP buscando MIX equilibrado de horários de almoço.
+    // Idealmente terminar com ~2 que almoçam 12-13 e ~2 que almoçam 13-14, pra
+    // sempre ter alguém cobrindo cada turno enquanto outros almoçam.
+    //
+    // Algoritmo: ordena candidatos restantes por wppCount (menos vezes em WPP
+    // primeiro = equilíbrio histórico), depois filtra por preferência atual:
+    //   - Se já tem 2 do horário X em wppHoje → pula candidatos do horário X
+    //   - Caso contrário → adiciona
+    // Se sobrarem vagas e todos os candidatos do "lado faltante" já foram, abre
+    // a porta pro horário oposto (fallback). Garante 4 vagas sempre preenchidas.
+    const periodoOf = (c) => String(c.periodo_almoco || '13') === '12' ? '12' : '13';
+    const contaPeriodo = (set) => {
+      let p12 = 0, p13 = 0;
+      for (const id of set) {
+        const c = candidatosWpp.find(x => x.id === id);
+        if (!c) continue;
+        if (periodoOf(c) === '12') p12++; else p13++;
+      }
+      return { p12, p13 };
+    };
+
     const restantes = candidatosWpp
       .filter(c => !wppHoje.has(c.id))
       .sort((a,b) => (wppCount.get(a.id) || 0) - (wppCount.get(b.id) || 0));
 
+    // 1ª passagem: respeita o limite de 2 por horário
     for (const c of restantes) {
       if (wppHoje.size >= 4) break;
+      const { p12, p13 } = contaPeriodo(wppHoje);
+      const p = periodoOf(c);
+      if (p === '12' && p12 >= 2) continue; // já tem 2 do 12-13, pula
+      if (p === '13' && p13 >= 2) continue; // já tem 2 do 13-14, pula
       wppHoje.add(c.id);
+    }
+
+    // 2ª passagem (fallback): se ainda faltarem vagas, ignora limite e completa
+    if (wppHoje.size < 4) {
+      for (const c of restantes) {
+        if (wppHoje.size >= 4) break;
+        if (wppHoje.has(c.id)) continue;
+        wppHoje.add(c.id);
+      }
     }
 
     // Verifica regra "mínimo 2 veteranos no Sales"
