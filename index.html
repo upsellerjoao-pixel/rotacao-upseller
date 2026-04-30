@@ -4896,9 +4896,10 @@ Regra:
 
     if (!elegiveis.length) { alert('Nenhum colaborador elegível.'); return; }
 
-    // Coletar 30 datas úteis (pulando feriados e fins de semana)
+    // Coletar 30 datas úteis a partir de HOJE (inclui hoje, pula feriados e fins de semana)
     const datas = [];
     const d = new Date();
+    d.setDate(d.getDate() - 1); // -1 antes do loop pra que o primeiro +1 caia em hoje
     let varridos = 0;
     while (datas.length < 30 && varridos < 60) {
       d.setDate(d.getDate() + 1);
@@ -5226,6 +5227,7 @@ async function gerarRotacaoAuto() {
   const jaExistem = new Set((await sbFetchSvc(`rotacao_home?select=data&data=gte.${HOJE_STR}&limit=200`)).map(r => r.data));
 
   const d = new Date();
+  d.setDate(d.getDate() - 1); // -1 antes do loop pra que o primeiro +1 caia em hoje
   let diasUteisGerados = 0, idx = idxInicio;
   const inserts = [];
 
@@ -5901,9 +5903,10 @@ async function gerarEscalaSemana() {
   const jaGerados = await sbFetchSvc(`escala_semanal?select=colaborador_id,data&data=gte.${hojeStr}&limit=2000`).catch(() => []);
   const jaGeradoSet = new Set(jaGerados.map(r => `${r.data}|${r.colaborador_id}`));
 
-  // Coletar 30 datas úteis (pulando fim de semana e feriados)
+  // Coletar 30 datas úteis a partir de HOJE (inclui hoje, pula fim de semana e feriados)
   const datas = [];
   const d = new Date();
+  d.setDate(d.getDate() - 1); // truque: -1 antes do loop pra que o primeiro +1 caia em hoje
   let varridos = 0;
   while (datas.length < 30 && varridos < 60) {
     d.setDate(d.getDate() + 1);
