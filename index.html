@@ -1287,9 +1287,10 @@
             <div class="admin-section-title">🏠 Rotação da Home</div>
             <div class="admin-section-sub">Adicione, edite ou remova dias da rotação da Home.</div>
           </div>
-          <div style="display:flex;gap:8px;">
-            <button class="btn btn-outline" onclick="gerarRotacaoAuto()">⚡ Gerar 30 dias</button>
-            <button class="btn btn-primary" onclick="abrirModalRotacaoHome()">+ Adicionar dia</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-outline" onclick="gerarRotacaoAuto()">⚡ Gerar 30 dias (Home)</button>
+            <button class="btn btn-primary" onclick="gerarTudoAuto()" style="background:linear-gradient(135deg,#8b5cf6,#3b82f6);">🚀 Gerar tudo (Home + Diária + Almoço)</button>
+            <button class="btn btn-outline" onclick="abrirModalRotacaoHome()">+ Adicionar dia</button>
           </div>
         </div>
         <div class="info-box">
@@ -1517,32 +1518,33 @@
         <option value="13">13h–14h</option>
       </select>
     </div>
-    <div style="display:flex;gap:20px;margin-bottom:16px;flex-wrap:wrap;">
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--subtle);">
-        <input type="checkbox" id="colab-is-gestor" onchange="atualizarVisibilidadePermissoes()" style="width:16px;height:16px;"> É gestor
-      </label>
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--subtle);">
+    <div style="display:flex;gap:20px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end;">
+      <div class="field" style="flex:1;min-width:240px;margin-bottom:0;">
+        <label>Nível de acesso</label>
+        <select id="colab-nivel-acesso" onchange="atualizarVisibilidadePermissoes()" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;">
+          <option value="atendente">Atendente — só visão geral e dashboard</option>
+          <option value="atendente_parcial">Atendente parcial — abas específicas (configurar)</option>
+          <option value="gestor">Gestor — acesso total + atendimento com privilégios</option>
+          <option value="super_gestor">Super-gestor — acesso total ao sistema</option>
+        </select>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--subtle);padding-bottom:10px;">
         <input type="checkbox" id="colab-ativo" checked style="width:16px;height:16px;"> Ativo (acesso ao sistema)
       </label>
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--subtle);">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--subtle);padding-bottom:10px;">
         <input type="checkbox" id="colab-faz-atend" checked style="width:16px;height:16px;"> Faz atendimento (entra na rotação)
       </label>
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--subtle);">
-        <input type="checkbox" id="colab-faz-aulao" style="width:16px;height:16px;"> Faz aulão (entra na rotação de aulões)
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--subtle);padding-bottom:10px;">
+        <input type="checkbox" id="colab-faz-aulao" style="width:16px;height:16px;"> Faz aulão
       </label>
     </div>
 
-    <!-- SEÇÃO DE PERMISSÕES DO GESTOR — visível só pra super-gestor editando alguém marcado como gestor -->
+    <!-- SEÇÃO DE PERMISSÕES — visível só pra super-gestor editando alguém marcado como Atendente parcial -->
     <div id="colab-permissoes-section" style="display:none;margin-bottom:16px;padding:14px;background:rgba(59,130,246,0.05);border:1px solid rgba(59,130,246,0.2);border-radius:10px;">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-        <span style="font-size:14px;font-weight:600;color:var(--text);">🔐 Permissões do Gestor</span>
-        <span style="font-size:11px;color:var(--muted);">(sub-abas que este gestor terá acesso)</span>
+        <span style="font-size:14px;font-weight:600;color:var(--text);">🔐 Permissões do Atendente parcial</span>
+        <span style="font-size:11px;color:var(--muted);">(sub-abas específicas que ele terá acesso)</span>
       </div>
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--subtle);margin-bottom:10px;padding:6px 10px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.25);border-radius:6px;">
-        <input type="checkbox" id="colab-is-super-gestor" style="width:14px;height:14px;">
-        <span style="color:#a78bfa;font-weight:600;">👑 Super-gestor</span>
-        <span style="color:var(--muted);font-size:11px;">(acesso total + pode gerenciar permissões)</span>
-      </label>
       <div id="colab-permissoes-checkboxes" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;">
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--subtle);"><input type="checkbox" class="perm-check" value="operacional" style="width:14px;height:14px;"> 📋 Operacional</label>
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--subtle);"><input type="checkbox" class="perm-check" value="colaboradores" style="width:14px;height:14px;"> 👥 Colaboradores</label>
@@ -3571,7 +3573,7 @@ async function loadAll() {
       sbFetch('v_aulao_hoje_semana').catch(() => sbFetch('auloes?select=*,colaboradores(nome,apelido)&order=data.asc&limit=10')),
       sbFetch(`rotacao_sabados?select=data,colaborador_id&data=gte.${HOJE_STR}&order=data.asc&limit=200`).catch(() => []),
       sbFetch(`v_rotacao_home_semana?order=data.asc&data=gte.${HOJE_STR}&limit=20`).catch(() => 
-        sbFetch(`rotacao_home?select=id,data,feriado,colaborador_id&order=data.asc&data=gte.${HOJE_STR}&limit=20`).catch(() => [])
+        sbFetchSvc(`rotacao_home?select=id,data,feriado,colaborador_id&order=data.asc&data=gte.${HOJE_STR}&limit=20`).catch(() => [])
       ),
       sbFetch('v_rotacao_home_hoje').catch(() => []),
       sbFetch('v_grupos_colaborador').catch(() => []),
@@ -4178,6 +4180,36 @@ async function renderAdminColabs() {
   } catch(e) { el.innerHTML = `<div class="error-msg">Erro: ${e.message}</div>`; }
 }
 
+// ══════════════════════════════════════════════════════════════════════
+// Helpers de tradução entre o dropdown "Nível de acesso" e as flags
+// existentes no banco (is_gestor, is_super_gestor, atendente_pleno).
+//
+// 4 níveis:
+//   atendente          → todas as flags = false
+//   atendente_parcial  → is_gestor=true (acessa abas configuradas via permissoes_gestor)
+//   gestor             → is_gestor=true + atendente_pleno=true (Ricardo, Lucca)
+//   super_gestor       → is_gestor=true + is_super_gestor=true (acesso total)
+//
+// O dropdown unifica a UI; o banco continua com as 3 flags (sem migration).
+// ══════════════════════════════════════════════════════════════════════
+function getNivelAcessoFromFlags(c) {
+  if (c.is_super_gestor === true) return 'super_gestor';
+  if (c.atendente_pleno === true) return 'gestor';
+  if (c.is_gestor === true)       return 'atendente_parcial';
+  return 'atendente';
+}
+
+function setFlagsFromNivelAcesso(nivel) {
+  // Retorna { is_gestor, is_super_gestor, atendente_pleno } pra mesclar no body do save
+  switch (nivel) {
+    case 'super_gestor':      return { is_gestor: true,  is_super_gestor: true,  atendente_pleno: false };
+    case 'gestor':            return { is_gestor: true,  is_super_gestor: false, atendente_pleno: true  };
+    case 'atendente_parcial': return { is_gestor: true,  is_super_gestor: false, atendente_pleno: false };
+    case 'atendente':
+    default:                  return { is_gestor: false, is_super_gestor: false, atendente_pleno: false };
+  }
+}
+
 function abrirModalColab(id) {
   document.getElementById('colab-edit-id').value = '';
   document.getElementById('colab-nome').value = '';
@@ -4188,12 +4220,11 @@ function abrirModalColab(id) {
   document.getElementById('btn-toggle-senha').textContent = '👁';
   document.getElementById('colab-data-inicio').value = '';
   document.getElementById('colab-almoco').value = '13';
-  document.getElementById('colab-is-gestor').checked = false;
+  document.getElementById('colab-nivel-acesso').value = 'atendente';
   document.getElementById('colab-ativo').checked = true;
   document.getElementById('colab-faz-atend').checked = true;
   document.getElementById('colab-faz-aulao').checked = false;
-  // Resetar permissões
-  document.getElementById('colab-is-super-gestor').checked = false;
+  // Resetar permissões granulares
   document.querySelectorAll('.perm-check').forEach(cb => cb.checked = false);
   atualizarVisibilidadePermissoes();
   document.getElementById('colab-modal-titulo').textContent = '➕ Novo Colaborador';
@@ -4213,12 +4244,11 @@ function editarColab(id) {
   document.getElementById('btn-toggle-senha').textContent = '👁';
   document.getElementById('colab-data-inicio').value = c.data_inicio || '';
   document.getElementById('colab-almoco').value = c.periodo_almoco || '13';
-  document.getElementById('colab-is-gestor').checked = !!c.is_gestor;
+  document.getElementById('colab-nivel-acesso').value = getNivelAcessoFromFlags(c);
   document.getElementById('colab-ativo').checked = c.ativo !== false;
   document.getElementById('colab-faz-atend').checked = c.faz_atendimento !== false;
   document.getElementById('colab-faz-aulao').checked = !!c.faz_aulao;
-  // Carregar permissões
-  document.getElementById('colab-is-super-gestor').checked = !!c.is_super_gestor;
+  // Permissões granulares (só relevante se nivel = atendente_parcial)
   const perms = Array.isArray(c.permissoes_gestor) ? c.permissoes_gestor : [];
   document.querySelectorAll('.perm-check').forEach(cb => {
     cb.checked = perms.includes(cb.value);
@@ -4231,11 +4261,12 @@ function editarColab(id) {
 
 // Mostra/esconde a seção de permissões conforme contexto
 function atualizarVisibilidadePermissoes() {
-  const isGestor = document.getElementById('colab-is-gestor').checked;
+  const nivel = document.getElementById('colab-nivel-acesso').value;
   const sou_super = !!currentColaborador?.is_super_gestor;
   const section = document.getElementById('colab-permissoes-section');
-  // Só super-gestor vê e edita permissões. Só aparece se o colaborador for marcado como gestor.
-  section.style.display = (sou_super && isGestor) ? 'block' : 'none';
+  // Só super-gestor vê e edita permissões granulares.
+  // E só aparece se o colaborador for "Atendente parcial" (caso onde precisa escolher abas).
+  section.style.display = (sou_super && nivel === 'atendente_parcial') ? 'block' : 'none';
 }
 
 function marcarTodasPermissoes(marcar) {
@@ -4250,20 +4281,37 @@ async function salvarColab() {
   const senha = document.getElementById('colab-senha').value.trim();
   const dataInicio = document.getElementById('colab-data-inicio').value;
   const almoco = document.getElementById('colab-almoco').value;
-  const isGestor = document.getElementById('colab-is-gestor').checked;
+  const nivelAcesso = document.getElementById('colab-nivel-acesso').value;
   const ativo = document.getElementById('colab-ativo').checked;
   const fazAtend = document.getElementById('colab-faz-atend').checked;
   const fazAulao = document.getElementById('colab-faz-aulao').checked;
 
   if (!nome || !email) { alert('Preencha nome e e-mail.'); return; }
 
-  const body = { nome, apelido: apelido || nome, email, is_gestor: isGestor, ativo, faz_atendimento: fazAtend, faz_aulao: fazAulao, data_inicio: dataInicio || null, periodo_almoco: almoco };
+  const flags = setFlagsFromNivelAcesso(nivelAcesso);
+  const body = {
+    nome,
+    apelido: apelido || nome,
+    email,
+    is_gestor: flags.is_gestor,
+    ativo,
+    faz_atendimento: fazAtend,
+    faz_aulao: fazAulao,
+    data_inicio: dataInicio || null,
+    periodo_almoco: almoco
+  };
   if (senha) body.senha = senha;
 
-  // Só super-gestor pode mexer em permissões de gestor
+  // Só super-gestor pode mexer em níveis de acesso e permissões.
+  // Outros usuários não conseguem editar essas flags (UI já não mostra o dropdown
+  // pra eles, mas defesa-em-profundidade aqui também).
   if (currentColaborador?.is_super_gestor) {
-    body.is_super_gestor = document.getElementById('colab-is-super-gestor').checked;
-    const perms = Array.from(document.querySelectorAll('.perm-check:checked')).map(cb => cb.value);
+    body.is_super_gestor = flags.is_super_gestor;
+    body.atendente_pleno = flags.atendente_pleno;
+    // Permissões granulares só relevantes pro nível "atendente_parcial"
+    const perms = nivelAcesso === 'atendente_parcial'
+      ? Array.from(document.querySelectorAll('.perm-check:checked')).map(cb => cb.value)
+      : [];
     body.permissoes_gestor = perms;
   }
 
@@ -4827,68 +4875,129 @@ async function alternarCelulaAlmoco(colabId, data, bloco) {
 // - Quem almoça em 13-14 → 🍽️ no bloco 13-14
 // - Outros blocos: aplica canal da escala semanal (se não houver, default WhatsApp)
 async function gerarEscalaAlmocoAuto() {
-  if (!confirm('Gerar escala de almoço automática para a semana visível? Isso vai sobrescrever os valores atuais.')) return;
-  try {
-    // SEMPRE recarrega pra garantir que tem periodo_almoco fresco do banco
-    // (outras funções carregam colabsAdmin sem esse campo, o que causaria bug)
-    colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido,ativo,faz_atendimento,periodo_almoco&order=nome.asc').catch(() => []);
-    const ativos = colabsAdmin.filter(c => c.ativo !== false && c.faz_atendimento !== false);
+  if (!confirm(`Gerar Almoço dos próximos 30 dias úteis?
 
-    // Pegar semana visível
-    const hoje = new Date();
-    hoje.setHours(0,0,0,0);
-    const dow = hoje.getDay() || 7;
-    const segHoje = new Date(hoje);
-    segHoje.setDate(hoje.getDate() - (dow - 1) + (almocoSemOffset * 7));
+Regra:
+- Cada colaborador tem 1 turno de almoço (12-13h ou 13-14h) e o outro turno fica no canal da Diária.
+- Das 4 pessoas em WhatsApp por dia: 2 almoçam 12-13h e 2 almoçam 13-14h (preferência por periodo_almoco do cadastro).
+- Atendentes plenos (Ricardo, Lucca) e novatos: ficam em Sales nos dois turnos (almoçam num e Sales no outro).
+
+⚠️ Dias/pessoas já cadastrados NÃO serão sobrescritos.`)) return;
+
+  try {
+    // Recarrega TUDO fresh (Svc por garantia)
+    colabsAdmin = await sbFetchSvc('colaboradores?select=id,nome,apelido,ativo,faz_atendimento,periodo_almoco,is_gestor,is_super_gestor,atendente_pleno,data_inicio&order=nome.asc').catch(() => []);
+    const elegiveis = colabsAdmin.filter(c => {
+      if (c.ativo === false) return false;
+      if (c.faz_atendimento === false) return false;
+      if (c.is_super_gestor === true) return false; // João, Victor: excluídos
+      return true;
+    });
+
+    if (!elegiveis.length) { alert('Nenhum colaborador elegível.'); return; }
+
+    // Coletar 30 datas úteis (pulando feriados e fins de semana)
     const datas = [];
-    for (let i = 0; i < 5; i++) {
-      const d = new Date(segHoje);
-      d.setDate(segHoje.getDate() + i);
-      datas.push(d.toISOString().slice(0,10));
+    const d = new Date();
+    let varridos = 0;
+    while (datas.length < 30 && varridos < 60) {
+      d.setDate(d.getDate() + 1);
+      varridos++;
+      if (d.getDay() === 0 || d.getDay() === 6) continue;
+      const ds = d.toISOString().slice(0,10);
+      if (isFeriado(ds)) continue;
+      datas.push(ds);
     }
+    if (!datas.length) { showToast('Nenhuma data útil encontrada nos próximos 60 dias.', 'error'); return; }
+
     const dataIni = datas[0], dataFim = datas[datas.length-1];
 
-    // Buscar escala_semanal pra saber o canal padrão
+    // Buscar Diária (escala_semanal) das datas - fonte de verdade pro canal de cada um
     const escSemanal = await fetch(
       `${SB_URL}/rest/v1/escala_semanal?select=colaborador_id,data,canal&data=gte.${dataIni}&data=lte.${dataFim}`,
       { headers: { 'apikey': SB_KEY_SVC, 'Authorization': `Bearer ${SB_KEY_SVC}` } }
     ).then(r => r.ok ? r.json() : []).catch(() => []);
-
     const canalSemanal = (cid, data) => {
       const r = escSemanal.find(x => x.colaborador_id === cid && x.data === data);
-      return r?.canal || 'WhatsApp';
+      return r?.canal || 'Sales'; // default Sales caso não tenha Diária
     };
 
-    // Limpar registros existentes da semana (delete em massa)
-    await fetch(`${SB_URL}/rest/v1/escala_almoco_diaria?data=gte.${dataIni}&data=lte.${dataFim}`, {
-      method: 'DELETE',
-      headers: { 'apikey': SB_KEY_SVC, 'Authorization': `Bearer ${SB_KEY_SVC}` }
-    });
+    // Buscar quais (data, colaborador_id, bloco) JÁ existem em escala_almoco_diaria
+    const jaGerados = await fetch(
+      `${SB_URL}/rest/v1/escala_almoco_diaria?select=colaborador_id,data,bloco&data=gte.${dataIni}&data=lte.${dataFim}`,
+      { headers: { 'apikey': SB_KEY_SVC, 'Authorization': `Bearer ${SB_KEY_SVC}` } }
+    ).then(r => r.ok ? r.json() : []).catch(() => []);
+    const jaGeradoSet = new Set(jaGerados.map(r => `${r.data}|${r.colaborador_id}|${r.bloco}`));
 
-    // Montar registros novos (pulando feriados)
     const inserts = [];
-    for (const c of ativos) {
-      const periodo = String(c.periodo_almoco || '13');
-      const blocoAlmoco = periodo === '12' ? '12-13' : '13-14';
-      const blocoOutro  = periodo === '12' ? '13-14' : '12-13';
-      for (const data of datas) {
-        if (isFeriado(data)) continue; // pula feriados
+
+    // Pra cada data, distribui blocos:
+    // - Quem está em WhatsApp na Diária: precisa balancear 2 almoçando 12-13 e 2 almoçando 13-14
+    //   (preferência periodo_almoco; se preferência == '12' tenta colocar no 12-13)
+    // - Quem está em Sales na Diária: usa o periodo_almoco do cadastro (sem balanceamento)
+    for (const data of datas) {
+      const wppDoDia = elegiveis.filter(c => canalSemanal(c.id, data) === 'WhatsApp');
+      const salesDoDia = elegiveis.filter(c => canalSemanal(c.id, data) === 'Sales');
+
+      // Distribui o WPP em 2 turnos: prefere quem tem periodo_almoco='12' no 12-13
+      const wppPref12 = wppDoDia.filter(c => String(c.periodo_almoco || '13') === '12');
+      const wppPref13 = wppDoDia.filter(c => String(c.periodo_almoco || '13') !== '12');
+
+      const wpp12 = []; // quem almoça 12-13
+      const wpp13 = []; // quem almoça 13-14
+
+      // Preenche 12-13 com pref12 primeiro até 2
+      for (const c of wppPref12) { if (wpp12.length < 2) wpp12.push(c); else wpp13.push(c); }
+      // Preenche 13-14 com pref13 até atingir 2
+      for (const c of wppPref13) { if (wpp13.length < 2) wpp13.push(c); else wpp12.push(c); }
+
+      // Se ainda tiver desequilíbrio (ex: 4 pref12 e 0 pref13), redistribui
+      while (wpp12.length > 2 && wpp13.length < 2) wpp13.push(wpp12.pop());
+      while (wpp13.length > 2 && wpp12.length < 2) wpp12.push(wpp13.pop());
+
+      const blocoAlmocoDe = new Map(); // colaborador_id → '12-13' ou '13-14'
+      wpp12.forEach(c => blocoAlmocoDe.set(c.id, '12-13'));
+      wpp13.forEach(c => blocoAlmocoDe.set(c.id, '13-14'));
+      // Sales: usa preferência do cadastro
+      for (const c of salesDoDia) {
+        const periodo = String(c.periodo_almoco || '13');
+        blocoAlmocoDe.set(c.id, periodo === '12' ? '12-13' : '13-14');
+      }
+
+      // Monta os 2 registros (um por bloco) pra cada colaborador
+      for (const c of elegiveis) {
+        const blocoAlmoco = blocoAlmocoDe.get(c.id);
+        if (!blocoAlmoco) continue; // colaborador sem blocagem (defesa)
+        const blocoOutro = blocoAlmoco === '12-13' ? '13-14' : '12-13';
         const canalBase = canalSemanal(c.id, data);
-        // Bloco do almoço dele: 🍽️
-        inserts.push({ colaborador_id: c.id, data, bloco: blocoAlmoco, canal: 'Almoco' });
-        // Outro bloco: canal da escala semanal
-        inserts.push({ colaborador_id: c.id, data, bloco: blocoOutro, canal: canalBase });
+
+        // Bloco do almoço dele: canal='Almoco'
+        const k1 = `${data}|${c.id}|${blocoAlmoco}`;
+        if (!jaGeradoSet.has(k1)) {
+          inserts.push({ colaborador_id: c.id, data, bloco: blocoAlmoco, canal: 'Almoco' });
+        }
+        // Outro bloco: canal da Diária
+        const k2 = `${data}|${c.id}|${blocoOutro}`;
+        if (!jaGeradoSet.has(k2)) {
+          inserts.push({ colaborador_id: c.id, data, bloco: blocoOutro, canal: canalBase });
+        }
       }
     }
 
-    // Insert em massa
+    if (!inserts.length) {
+      showToast('Tudo já estava cadastrado. Nada a inserir.');
+      await renderAlmoco();
+      return;
+    }
+
+    // Insert em massa (com ignore-duplicates por segurança extra; UNIQUE no banco filtra)
     const r = await fetch(`${SB_URL}/rest/v1/escala_almoco_diaria`, {
       method: 'POST',
       headers: {
         'apikey': SB_KEY_SVC,
         'Authorization': `Bearer ${SB_KEY_SVC}`,
         'Content-Type': 'application/json',
-        'Prefer': 'return=minimal'
+        'Prefer': 'resolution=ignore-duplicates,return=minimal'
       },
       body: JSON.stringify(inserts)
     });
@@ -4898,7 +5007,7 @@ async function gerarEscalaAlmocoAuto() {
       showToast('Erro ao gerar: ' + t.slice(0,80), 'error');
       return;
     }
-    showToast(`✓ Escala de almoço gerada (${inserts.length} registros)`);
+    showToast(`✓ Almoço gerado (${inserts.length} registro(s) inserido(s))`);
     await renderAlmoco();
   } catch(e) {
     console.error('gerarEscalaAlmocoAuto erro:', e);
@@ -4973,17 +5082,25 @@ async function renderAdminRotacaoHome() {
     });
     rotacaoHomeAdmin = homeResp.ok ? await homeResp.json() : [];
 
-    // Garantir que colabsAdmin está carregado
-    if (!colabsAdmin.length) {
-      colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido,email,data_inicio,is_gestor,ativo,faz_atendimento&order=nome.asc').catch(() => []);
+    // Garantir que colabsAdmin está carregado COM os campos necessários
+    if (!colabsAdmin.length || colabsAdmin[0].atendente_pleno === undefined) {
+      colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido,email,data_inicio,is_gestor,is_super_gestor,atendente_pleno,ativo,faz_atendimento&order=nome.asc').catch(() => []);
     }
     const colabMap = {};
     colabsAdmin.forEach(c => colabMap[c.id] = c.apelido || c.nome);
 
-    const veteranos = colabsAdmin.filter(c => c.ativo !== false && !calcNovato(c.data_inicio));
+    // Sequência exibida = mesma população elegível pra rotação Home:
+    // ativos + atendentes + veteranos + NÃO super-gestor + NÃO atendente pleno
+    const veteranos = colabsAdmin.filter(c => {
+      if (c.ativo === false) return false;
+      if (c.faz_atendimento === false) return false;
+      if (c.is_super_gestor === true) return false;
+      if (c.atendente_pleno === true) return false;
+      return !calcNovato(c.data_inicio);
+    });
     document.getElementById('sequencia-home-display').textContent = veteranos.length
       ? veteranos.map(v => v.apelido || v.nome).join(' → ')
-      : 'Nenhum veterano cadastrado';
+      : 'Nenhum veterano elegível cadastrado';
 
     if (!rotacaoHomeAdmin.length) { el.innerHTML = '<div class="error-msg">Nenhuma rotação cadastrada. Use "Gerar 30 dias" para criar automaticamente.</div>'; return; }
     el.innerHTML = `<table class="admin-table">
@@ -5051,7 +5168,7 @@ async function salvarRotacaoHome() {
     ok = await sbPatch('rotacao_home', `id=eq.${id}`, body);
   } else {
     // Verificar se já existe entrada para essa data
-    const exist = await sbFetch(`rotacao_home?select=id&data=eq.${data}&limit=1`).catch(() => []);
+    const exist = await sbFetchSvc(`rotacao_home?select=id&data=eq.${data}&limit=1`).catch(() => []);
     if (exist.length) {
       ok = await sbPatch('rotacao_home', `data=eq.${data}`, body);
     } else {
@@ -5062,7 +5179,7 @@ async function salvarRotacaoHome() {
     fecharModal('rotacao-home-modal');
     showToast('Rotação salva!');
     await renderAdminRotacaoHome();
-    const rotHome = await sbFetch(`rotacao_home?select=id,data,feriado,colaborador_id&order=data.asc&data=gte.${HOJE_STR}&limit=20`).catch(() => []);
+    const rotHome = await sbFetchSvc(`rotacao_home?select=id,data,feriado,colaborador_id&order=data.asc&data=gte.${HOJE_STR}&limit=20`).catch(() => []);
     renderRotacaoHome(rotHome);
   } else {
     showToast('Erro ao salvar. Verifique as credenciais.', 'error');
@@ -5077,21 +5194,28 @@ async function removerRotacaoHome(id, data) {
 
 async function gerarRotacaoAuto() {
   if (!colabsAdmin.length) {
-    colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido,data_inicio,ativo,faz_atendimento&order=nome.asc').catch(() => []);
+    colabsAdmin = await sbFetchSvc('colaboradores?select=id,nome,apelido,data_inicio,ativo,faz_atendimento,is_gestor,is_super_gestor,atendente_pleno&order=nome.asc').catch(() => []);
   }
   const hoje_real = new Date();
+
+  // Elegíveis pra Home: ativos, atendentes, veteranos (≥90 dias),
+  // EXCLUI: super-gestores (João, Victor) e atendentes plenos (Ricardo, Lucca).
+  // INCLUI: gestores parciais como Lucas (is_gestor=true mas atendente_pleno=false).
   const veteranos = colabsAdmin.filter(c => {
     if (c.ativo === false) return false;
     if (c.faz_atendimento === false) return false;
+    if (c.is_super_gestor === true) return false;     // exclui João, Victor
+    if (c.atendente_pleno === true) return false;     // exclui Ricardo, Lucca
     if (!c.data_inicio) return true;
     return (hoje_real - new Date(c.data_inicio + 'T12:00:00')) / (1000*60*60*24) >= 90;
   });
-  if (!veteranos.length) { alert('Nenhum veterano disponível para gerar rotação.'); return; }
 
-  if (!confirm(`Gerar rotação dos próximos 30 dias úteis com ${veteranos.length} veteranos?\n\n${veteranos.map(v=>v.apelido||v.nome).join(' → ')}\n\nDias existentes serão mantidos.`)) return;
+  if (!veteranos.length) { alert('Nenhum veterano elegível para gerar rotação.'); return; }
+
+  if (!confirm(`Gerar rotação dos próximos 30 dias úteis com ${veteranos.length} veterano(s)?\n\n${veteranos.map(v=>v.apelido||v.nome).join(' → ')}\n\nDias existentes serão mantidos.`)) return;
 
   // Buscar última rotação para saber em qual veterano parar
-  const ultimas = await sbFetch(`rotacao_home?select=colaborador_id&order=data.desc&limit=1`).catch(() => []);
+  const ultimas = await sbFetchSvc(`rotacao_home?select=colaborador_id&order=data.desc&limit=1`).catch(() => []);
   let idxInicio = 0;
   if (ultimas.length && ultimas[0].colaborador_id) {
     const idx = veteranos.findIndex(v => (v.id||v.colaborador_id) === ultimas[0].colaborador_id);
@@ -5099,21 +5223,32 @@ async function gerarRotacaoAuto() {
   }
 
   // Buscar dias já cadastrados
-  const jaExistem = new Set((await sbFetch(`rotacao_home?select=data&data=gte.${HOJE_STR}&limit=60`)).map(r => r.data));
+  const jaExistem = new Set((await sbFetchSvc(`rotacao_home?select=data&data=gte.${HOJE_STR}&limit=200`)).map(r => r.data));
 
   const d = new Date();
-  let diasGerados = 0, idx = idxInicio;
+  let diasUteisGerados = 0, idx = idxInicio;
   const inserts = [];
 
-  while (diasGerados < 30) {
+  // Gera 30 DIAS ÚTEIS (não 30 dias corridos), pulando finais de semana e feriados
+  const MAX_DIAS_VARREDURA = 60; // teto de segurança; em prática dá uns 42-44 pra cobrir 30 úteis
+  let varridos = 0;
+  while (diasUteisGerados < 30 && varridos < MAX_DIAS_VARREDURA) {
     d.setDate(d.getDate() + 1);
-    if (d.getDay() === 0 || d.getDay() === 6) continue; // pula fim de semana
+    varridos++;
+    if (d.getDay() === 0 || d.getDay() === 6) continue;       // pula sábado/domingo
     const ds = d.toISOString().slice(0,10);
+    if (isFeriado(ds)) {
+      // Marca feriado em rotacao_home se não existir
+      if (!jaExistem.has(ds)) {
+        inserts.push({ data: ds, colaborador_id: null, feriado: true });
+      }
+      continue; // não conta como dia útil de rotação, e não avança o índice do rodízio
+    }
     if (!jaExistem.has(ds)) {
-      inserts.push({ data: ds, colaborador_id: veteranos[idx % veteranos.length].id || veteranos[idx % veteranos.length].colaborador_id, feriado: false });
+      inserts.push({ data: ds, colaborador_id: veteranos[idx % veteranos.length].id, feriado: false });
       idx++;
     }
-    diasGerados++;
+    diasUteisGerados++;
   }
 
   if (!inserts.length) { showToast('Todos os dias já estão cadastrados!'); return; }
@@ -5123,13 +5258,51 @@ async function gerarRotacaoAuto() {
     if (!await sbPost('rotacao_home', body)) erros++;
   }
   if (erros === 0) {
-    showToast(`${inserts.length} dias gerados com sucesso!`);
+    showToast(`${inserts.length} dia(s) gerado(s) com sucesso!`);
   } else {
-    showToast(`${inserts.length - erros} dias gerados, ${erros} com erro.`, 'error');
+    showToast(`${inserts.length - erros} dia(s) gerado(s), ${erros} com erro.`, 'error');
   }
   await renderAdminRotacaoHome();
-  const rotHome = await sbFetch(`rotacao_home?select=id,data,feriado,colaborador_id&order=data.asc&data=gte.${HOJE_STR}&limit=20`).catch(() => []);
+  const rotHome = await sbFetchSvc(`rotacao_home?select=id,data,feriado,colaborador_id&order=data.asc&data=gte.${HOJE_STR}&limit=20`).catch(() => []);
   renderRotacaoHome(rotHome);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// gerarTudoAuto()
+// Executa as 3 gerações em sequência (ordem importa):
+//   1. Home (define quem é responsável da casa por dia)
+//   2. Diária (escala_semanal — 4 WhatsApp / resto Sales, respeitando Home)
+//   3. Almoço (escala_almoco_diaria — usa Diária como fonte de verdade)
+//
+// Cada uma das 3 funções já tem confirm() próprio. Esta wrapper só
+// encadeia e mostra um toast final consolidado.
+// ══════════════════════════════════════════════════════════════════════
+async function gerarTudoAuto() {
+  if (!confirm(`🚀 Gerar TUDO — Home + Diária + Almoço — para os próximos 30 dias úteis?
+
+Esta ação executa 3 etapas em sequência:
+  1️⃣  Rotação da Home
+  2️⃣  Escala Diária (Canais)
+  3️⃣  Escala de Almoço
+
+Cada etapa pedirá confirmação separada e respeitará registros já existentes (não sobrescreve).
+
+Você pode cancelar em qualquer etapa.`)) return;
+
+  showToast('Iniciando geração completa...', 'success');
+
+  // 1. Home
+  await gerarRotacaoAuto();
+  await new Promise(r => setTimeout(r, 300)); // pequena pausa pra UI atualizar
+
+  // 2. Diária (depende da Home pra colocar o responsável em WhatsApp)
+  await gerarEscalaSemana();
+  await new Promise(r => setTimeout(r, 300));
+
+  // 3. Almoço (depende da Diária pra saber quem está em WhatsApp/Sales)
+  await gerarEscalaAlmocoAuto();
+
+  showToast('🎉 Geração completa finalizada!', 'success');
 }
 
 // ── SÁBADOS ──────────────────────────────────────────────
@@ -5688,70 +5861,150 @@ async function toggleCanalSemana(colabId, data, canalAtual) {
 }
 
 async function gerarEscalaSemana() {
-  if (!colabsAdmin.length) {
-    colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido,data_inicio,ativo,faz_atendimento,periodo_almoco&order=nome.asc').catch(() => []);
-  }
-  const ativos = colabsAdmin.filter(c => c.ativo !== false && c.faz_atendimento !== false);
+  // Recarrega colabsAdmin com TODOS os campos necessários (Svc por garantia)
+  colabsAdmin = await sbFetchSvc('colaboradores?select=id,nome,apelido,data_inicio,ativo,faz_atendimento,is_gestor,is_super_gestor,atendente_pleno,periodo_almoco&order=nome.asc').catch(() => []);
 
-  const seg = getSegundaFeira(semanaOffset);
-  const dias = [];
-  for (let i = 0; i < 5; i++) {
-    const d = new Date(seg); d.setDate(d.getDate() + i);
-    dias.push(d.toISOString().slice(0,10));
-  }
+  // População da Diária:
+  // - Inclui: ativos, atendentes, exceto super-gestores
+  // - Atendentes plenos (atendente_pleno=true) entram, mas SEMPRE em Sales
+  // - Novatos entram, mas SEMPRE em Sales
+  // - Demais (incluindo gestores parciais como Lucas) entram no rodízio
+  const elegiveis = colabsAdmin.filter(c => {
+    if (c.ativo === false) return false;
+    if (c.faz_atendimento === false) return false;
+    if (c.is_super_gestor === true) return false; // João, Victor: excluídos
+    return true;
+  });
 
-  // Preview da regra para confirmação
-  const primeirosDia = dias[0];
-  const novsEx = ativos.filter(c => c.data_inicio && (new Date(primeirosDia+'T12:00:00') - new Date(c.data_inicio+'T12:00:00'))/(1000*60*60*24) < 90);
-  const vetsEx = ativos.filter(c => !novsEx.find(n => n.id === c.id));
-  const qtdVetSalesEx = novsEx.length === 0 ? Math.ceil(vetsEx.length / 2) : Math.min(2, vetsEx.length);
-  const totalSalesEx = novsEx.length + qtdVetSalesEx;
+  if (!elegiveis.length) { alert('Nenhum colaborador elegível.'); return; }
 
-  if (!confirm(`Gerar escala automática para esta semana?
-
-Total: ${ativos.length} colaboradores
-Novatos (→ Sales): ${novsEx.length}
-Veteranos no Sales: ${qtdVetSalesEx} (rodízio)
-Veteranos no WPP: ${vetsEx.length - qtdVetSalesEx}
-
-Total Sales: ~${totalSalesEx} | Total WPP: ~${ativos.length - totalSalesEx}
-
-Registros existentes serão substituídos.`)) return;
-
+  // Helpers
   const isNovatoNaData = (dataInicio, dataRef) => {
     if (!dataInicio) return false;
     return (new Date(dataRef + 'T12:00:00') - new Date(dataInicio + 'T12:00:00')) / (1000*60*60*24) < 90;
   };
+  const isAtendentePleno = (c) => c.atendente_pleno === true;
 
-  let vetIdx = 0, erros = 0;
-  try {
-    for (const data of dias) {
-      await sbDelete('escala_semanal', `data=eq.${data}`);
-      await new Promise(r => setTimeout(r, 80));
+  // Buscar Home dos próximos 30 dias úteis (já gerada antes desta função)
+  // IMPORTANTE: sbFetchSvc (service role) — `rotacao_home` tem RLS que bloqueia anon.
+  // Usar sbFetch retorna [] sem erro, fazendo a Home ser ignorada (bug 30/4/26).
+  const hojeStr = new Date().toISOString().slice(0,10);
+  const homeRows = await sbFetchSvc(`rotacao_home?select=data,colaborador_id,feriado&data=gte.${hojeStr}&limit=200`).catch(() => []);
+  const homeDoDia = new Map(); // data → colaborador_id
+  const feriadosHome = new Set();
+  for (const h of homeRows) {
+    if (h.feriado) feriadosHome.add(h.data);
+    else if (h.colaborador_id) homeDoDia.set(h.data, h.colaborador_id);
+  }
 
-      const vets = ativos.filter(c => !isNovatoNaData(c.data_inicio, data));
-      const novs = ativos.filter(c => isNovatoNaData(c.data_inicio, data));
+  // Buscar quais (data, colaborador_id) JÁ existem em escala_semanal pra não sobrescrever (Svc)
+  const jaGerados = await sbFetchSvc(`escala_semanal?select=colaborador_id,data&data=gte.${hojeStr}&limit=2000`).catch(() => []);
+  const jaGeradoSet = new Set(jaGerados.map(r => `${r.data}|${r.colaborador_id}`));
 
-      // Quantos veteranos no Sales?
-      const qtdVetSales = novs.length === 0 ? Math.ceil(vets.length / 2) : Math.min(2, vets.length);
+  // Coletar 30 datas úteis (pulando fim de semana e feriados)
+  const datas = [];
+  const d = new Date();
+  let varridos = 0;
+  while (datas.length < 30 && varridos < 60) {
+    d.setDate(d.getDate() + 1);
+    varridos++;
+    if (d.getDay() === 0 || d.getDay() === 6) continue;
+    const ds = d.toISOString().slice(0,10);
+    if (isFeriado(ds)) continue;
+    datas.push(ds);
+  }
 
-      // Selecionar veteranos para Sales (rodízio contínuo)
-      const salesVetIds = new Set();
-      for (let i = 0; i < qtdVetSales; i++) {
-        if (vets.length > 0) salesVetIds.add(vets[(vetIdx + i) % vets.length].id);
-      }
-      vetIdx = (vetIdx + qtdVetSales) % Math.max(vets.length, 1);
+  // Confirma com o usuário
+  const exVet = elegiveis.filter(c => !isAtendentePleno(c) && !isNovatoNaData(c.data_inicio, datas[0]));
+  const exNov = elegiveis.filter(c => !isAtendentePleno(c) && isNovatoNaData(c.data_inicio, datas[0]));
+  const exPlenos = elegiveis.filter(c => isAtendentePleno(c));
+  if (!confirm(`Gerar Diária dos próximos 30 dias úteis?
 
-      for (const c of ativos) {
-        const novato = isNovatoNaData(c.data_inicio, data);
-        const canal = (novato || salesVetIds.has(c.id)) ? 'Sales' : 'WhatsApp';
-        if (!await sbPost('escala_semanal', { colaborador_id: c.id, data, canal })) erros++;
+População: ${elegiveis.length} colaboradores
+- Veteranos (rodízio): ${exVet.length}
+- Atendentes plenos (sempre Sales): ${exPlenos.length}
+- Novatos (sempre Sales): ${exNov.length}
+
+Regra por dia: 4 em WhatsApp, restante em Sales (mín. 2 veteranos no Sales).
+Quem é Home do dia entra automaticamente no WhatsApp.
+
+⚠️ Dias/pessoas já cadastrados NÃO serão sobrescritos.`)) return;
+
+  // Algoritmo de rodízio: por dia, escolhe 4 pessoas pra WhatsApp respeitando regras.
+  // Mantém um índice global de "qual veterano elegível foi pra WPP por último"
+  // pra distribuir mais ou menos uniforme ao longo dos 30 dias.
+  const veteranosRodizio = elegiveis.filter(c => !isAtendentePleno(c));
+  // Histórico: quantos dias cada veterano já foi pra WPP nos próximos 30
+  const wppCount = new Map(veteranosRodizio.map(v => [v.id, 0]));
+
+  let erros = 0, inseridos = 0, pulados = 0;
+
+  // [DEBUG] Log do estado inicial da geração
+  console.log('🔍 [Diária] Início. Dias:', datas.length, 'Elegíveis:', elegiveis.map(c => c.apelido).join(','));
+  console.log('🔍 [Diária] homeDoDia size:', homeDoDia.size, 'entries:', [...homeDoDia.entries()].slice(0,5));
+
+  for (const data of datas) {
+    // Veteranos elegíveis a WPP NESTA DATA: não pode ser novato nesta data nem atendente pleno
+    const candidatosWpp = veteranosRodizio.filter(c => !isNovatoNaData(c.data_inicio, data));
+
+    // Define o set final de quem fica em WPP (4 vagas)
+    const wppHoje = new Set();
+
+    // Vaga 1: Home do dia (se existir e for elegível a WPP)
+    const homeId = homeDoDia.get(data);
+    const homeColab = homeId ? candidatosWpp.find(c => c.id === homeId) : null;
+
+    // [DEBUG]
+    console.log(`🔍 [${data}] homeId=${homeId ? homeId.slice(0,8) : 'NULL'} homeNome=${homeColab?.apelido || 'NÃO ENCONTRADO em candidatosWpp'} | candidatos=${candidatosWpp.map(c=>c.apelido).join(',')}`);
+
+    if (homeId && homeColab) {
+      wppHoje.add(homeId);
+    }
+
+    // Vagas 2-4: ordena candidatos por wppCount (menos vezes em WPP primeiro) e completa
+    const restantes = candidatosWpp
+      .filter(c => !wppHoje.has(c.id))
+      .sort((a,b) => (wppCount.get(a.id) || 0) - (wppCount.get(b.id) || 0));
+
+    for (const c of restantes) {
+      if (wppHoje.size >= 4) break;
+      wppHoje.add(c.id);
+    }
+
+    // Verifica regra "mínimo 2 veteranos no Sales"
+    // Veteranos que NÃO estão em WPP nesta data:
+    const vetsNoSales = candidatosWpp.filter(c => !wppHoje.has(c.id));
+    if (vetsNoSales.length < 2) {
+      // Tira um do WPP (não a Home) e devolve pro Sales pra cumprir o mínimo
+      const removiveis = [...wppHoje].filter(id => id !== homeId);
+      while (vetsNoSales.length < 2 && removiveis.length) {
+        const tira = removiveis.shift();
+        wppHoje.delete(tira);
+        vetsNoSales.push(candidatosWpp.find(c => c.id === tira));
       }
     }
-  } catch(e) {
-    showToast('Erro inesperado: ' + e.message, 'error');
+
+    // Atualiza contador
+    for (const id of wppHoje) wppCount.set(id, (wppCount.get(id) || 0) + 1);
+
+    // Monta os inserts pra cada elegível
+    for (const c of elegiveis) {
+      if (jaGeradoSet.has(`${data}|${c.id}`)) { pulados++; continue; }
+
+      let canal;
+      if (isAtendentePleno(c))            canal = 'Sales';
+      else if (isNovatoNaData(c.data_inicio, data)) canal = 'Sales';
+      else if (wppHoje.has(c.id))         canal = 'WhatsApp';
+      else                                 canal = 'Sales';
+
+      const ok = await sbPost('escala_semanal', { colaborador_id: c.id, data, canal });
+      if (ok) inseridos++;
+      else erros++;
+    }
   }
-  erros === 0 ? showToast('Escala semanal gerada com sucesso!') : showToast(`Gerada com ${erros} erro(s).`, 'error');
+
+  const msg = `Diária gerada: ${inseridos} registro(s) inserido(s), ${pulados} preservado(s)${erros ? `, ${erros} erro(s)` : ''}.`;
+  showToast(msg, erros ? 'error' : 'success');
   await renderEscalaSemanal();
 }
 
