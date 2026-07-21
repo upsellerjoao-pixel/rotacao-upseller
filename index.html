@@ -138,6 +138,7 @@
   }
   .canal-CRM, .canal-WhatsApp { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
   .canal-Sales { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+  .canal-Pendente { background: rgba(148,163,184,0.15); color: #94a3b8; border: 1px solid rgba(148,163,184,0.3); }
 
   .card-name { font-family: 'DM Serif Display', serif; font-size: 19px; margin-bottom: 3px; }
   .card-email { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
@@ -312,9 +313,12 @@
   /* CANAIS DE ATENDIMENTO */
   .canais-board {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr);
     gap: 16px;
     margin-bottom: 32px;
+  }
+  @media (max-width: 900px) {
+    .canais-board { grid-template-columns: 1fr; }
   }
   .canal-coluna {
     background: var(--card);
@@ -1174,9 +1178,16 @@
     <!-- Canais de Atendimento -->
     <div style="margin-top:32px;margin-bottom:12px;">
       <div class="section-title" style="font-size:20px;margin-bottom:4px;">Canais de Atendimento</div>
-      <div class="section-sub" style="margin-bottom:12px;">Arraste os colaboradores entre as colunas. Mudanças são salvas imediatamente.</div>
+      <div class="section-sub" style="margin-bottom:12px;">Colaboradores ativados entram em ⏳ Aguardando — arraste para 💬 WhatsApp ou 💼 SalesSmartly para definir o canal. Mudanças são salvas imediatamente.</div>
     </div>
     <div class="canais-board">
+      <div class="canal-coluna" data-canal="Pendente" ondragover="onDragOver(event)" ondrop="onDrop(event,'Pendente')" ondragleave="onDragLeave(event)">
+        <div class="canal-header">
+          <span class="canal-titulo">⏳ Aguardando</span>
+          <span class="canal-count" id="count-Pendente">0</span>
+        </div>
+        <div class="canal-body" id="canal-Pendente"></div>
+      </div>
       <div class="canal-coluna" data-canal="WhatsApp" ondragover="onDragOver(event)" ondrop="onDrop(event,'WhatsApp')" ondragleave="onDragLeave(event)">
         <div class="canal-header">
           <span class="canal-titulo">💬 WhatsApp</span>
@@ -1250,11 +1261,22 @@
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
             <button class="btn btn-outline" onclick="semanaAnterior()">‹ Anterior</button>
             <button class="btn btn-outline" onclick="proximaSemana()">Próxima ›</button>
+            <button class="btn btn-outline" style="color:#f87171;border-color:rgba(239,68,68,0.35);" onclick="limparSemanaEscala()">🗑️ Limpar semana</button>
             <button class="btn btn-primary" onclick="gerarEscalaSemana()">⚡ Gerar automático</button>
           </div>
         </div>
         <div class="info-box">
-          💡 <strong>Regra:</strong> Novatos → Sales sempre. Veteranos: se há novatos = mínimo 2 veteranos no Sales; se todos são veteranos = 50/50 (distribuição igualitária). Rodízio define quais veteranos ficam em cada canal por dia.
+          💡 <strong>Regra:</strong> Novatos → Sales sempre. Veteranos entram no rodízio: por dia, a quantidade configurada abaixo fica no WhatsApp e o restante vai pro Sales. Use a lixeira no topo de cada dia para refazer só aquele dia, ou "Limpar semana" para refazer a semana toda.
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 14px;">
+          <span style="font-size:12px;color:var(--subtle);font-weight:600;">⚙️ Regra da rotação:</span>
+          <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;">No WhatsApp por dia
+            <input type="number" id="cfg-qtd-wpp" min="1" max="20" style="width:60px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;">
+          </label>
+          <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;">Mín. veteranos no Sales (se há novatos)
+            <input type="number" id="cfg-min-vet-sales" min="0" max="20" style="width:60px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;">
+          </label>
+          <button class="btn btn-outline" style="padding:5px 14px;font-size:12px;" onclick="salvarConfigEscala()">💾 Salvar regra</button>
         </div>
         <div id="semana-nav-label" style="font-size:13px;color:var(--muted);margin-bottom:12px;"></div>
         <div class="escala-semana-grid">
@@ -1319,6 +1341,24 @@
           ⭐ <strong>Novatos:</strong> aparecem em todos os sábados enquanto forem novatos.
         </div>
         <div id="admin-sabados-list"><div class="loading"><div class="spinner"></div> Carregando...</div></div>
+      </div>
+
+      <div class="admin-section" style="margin-top:16px;">
+        <div class="admin-header-row">
+          <div>
+            <div class="admin-section-title">👥 Grupos fixos de sábado</div>
+            <div class="admin-section-sub">Monte os grupos manualmente e defina a ordem. "Gerar por grupos" escala um grupo por sábado, seguindo a ordem.</div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-outline" onclick="gerarSabadosPorGrupos()">⚡ Gerar 12 (por grupos)</button>
+            <button class="btn btn-primary" onclick="abrirModalSabGrupo()">+ Novo grupo</button>
+          </div>
+        </div>
+        <div class="info-box">
+          🔁 A rotação segue a <strong>ordem</strong> dos grupos e continua de onde parou: o próximo sábado gerado recebe o grupo seguinte ao do último sábado cadastrado.<br>
+          ⭐ <strong>Novatos</strong> continuam entrando em todos os sábados automaticamente, além do grupo da vez.
+        </div>
+        <div id="sabado-grupos-list"><div class="loading"><div class="spinner"></div> Carregando...</div></div>
       </div>
     </div>
 
@@ -1677,6 +1717,26 @@
     <div class="modal-btns">
       <button class="btn btn-outline" onclick="fecharModal('sabado-modal')">Cancelar</button>
       <button class="btn btn-primary" onclick="salvarSabado()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL GRUPO FIXO DE SÁBADO -->
+<div class="modal-overlay" id="sabgrupo-modal">
+  <div class="modal modal-lg">
+    <h3 id="sabgrupo-modal-titulo">➕ Novo Grupo de Sábado</h3>
+    <p>Defina nome, ordem na rotação e membros do grupo</p>
+    <input type="hidden" id="sabgrupo-edit-id">
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;">
+      <div class="field"><label>Nome do grupo</label><input id="sabgrupo-nome" placeholder="Ex: Grupo 1"></div>
+      <div class="field"><label>Ordem na rotação</label><input type="number" id="sabgrupo-ordem" min="1" value="1"></div>
+    </div>
+    <div class="field"><label>Membros (selecione)</label>
+      <div id="sabgrupo-colab-selector" style="display:flex;flex-wrap:wrap;gap:8px;padding:12px;background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:16px;min-height:60px;"></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-outline" onclick="fecharModal('sabgrupo-modal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarSabGrupo()">💾 Salvar</button>
     </div>
   </div>
 </div>
@@ -2162,8 +2222,8 @@ function renderEscala(data) {
 
   // Ordenar: WhatsApp primeiro, SalesSmartly depois (desempate alfabético)
   disponiveis.sort((a, b) => {
-    const canalA = a.canal_hoje === 'Sales' ? 1 : 0;
-    const canalB = b.canal_hoje === 'Sales' ? 1 : 0;
+    const canalA = ehPendente(a) ? 2 : (a.canal_hoje === 'Sales' ? 1 : 0);
+    const canalB = ehPendente(b) ? 2 : (b.canal_hoje === 'Sales' ? 1 : 0);
     if (canalA !== canalB) return canalA - canalB;
     return (a.nome || '').localeCompare(b.nome || '');
   });
@@ -2194,7 +2254,7 @@ function renderEscala(data) {
     return `<div class="colab-card ${isHome ? 'home-hoje' : ''}" style="animation-delay:${i*50}ms">
       <div class="card-top">
         <div class="avatar">${(c.nome||'?')[0]}</div>
-        <span class="canal-badge canal-${c.canal_hoje||'WhatsApp'}">${c.canal_hoje === 'Sales' ? 'SalesSmartly' : 'WhatsApp'}</span>
+        <span class="canal-badge canal-${ehPendente(c) ? 'Pendente' : (c.canal_hoje||'WhatsApp')}">${ehPendente(c) ? '⏳ Aguardando' : (c.canal_hoje === 'Sales' ? 'SalesSmartly' : 'WhatsApp')}</span>
       </div>
       <div class="card-name">${c.nome}</div>
       <div class="card-email">${c.email||''}</div>
@@ -2323,8 +2383,17 @@ async function toggleDisp(id, atual) {
   if (ok) {
     const c = colaboradores.find(x => (x.id||x.colaborador_id) === id);
     if (c) c.disponivel_hoje = novo;
-    // Se ficou indisponível, remove atribuição de número
-    if (!novo) {
+    if (novo) {
+      // Ativou → entra em "⏳ Aguardando" (NÃO vai direto pro WhatsApp).
+      // Remove eventual escala antiga do dia pra não herdar canal velho.
+      setPendente(id, true);
+      if (c) c.canal_hoje = null;
+      await fetch(`${SB_URL}/rest/v1/escalas?colaborador_id=eq.${id}&data=eq.${HOJE_STR}`, {
+        method: 'DELETE', headers: hdrs(true)
+      }).catch(() => {});
+    } else {
+      // Ficou indisponível: remove atribuição de número e limpa pendência
+      setPendente(id, false);
       await fetch(`${SB_URL}/rest/v1/numeros_atribuicoes?colaborador_id=eq.${id}&data=eq.${HOJE_STR}`, {
         method: 'DELETE', headers: hdrs(true)
       }).catch(() => {});
@@ -2332,7 +2401,7 @@ async function toggleDisp(id, atual) {
     // Notificar o colaborador
     criarNotif(id,
       novo ? '✅ Você está ativo hoje' : '⏸️ Você foi desativado',
-      novo ? 'Você foi marcado como disponível. Seus grupos e VIPs foram atribuídos.' : 'Você foi marcado como indisponível. Seus grupos foram redistribuídos.',
+      novo ? 'Você foi marcado como disponível. O gestor vai definir seu canal de atendimento de hoje (WhatsApp ou Sales).' : 'Você foi marcado como indisponível. Seus grupos foram redistribuídos.',
       novo ? 'sucesso' : 'alerta'
     );
     renderDisponibilidade();
@@ -2380,7 +2449,7 @@ async function _redistribuirTudoInner() {
   const todosDisp = colaboradores
     .filter(c => c.disponivel_hoje !== false && c.ativo !== false && c.faz_atendimento !== false && !c._em_almoco)
     .map(c => ({ ...c, _cid: c.id || c.colaborador_id }));
-  const dispWpp = todosDisp.filter(c => (c.canal_hoje || 'WhatsApp') !== 'Sales');
+  const dispWpp = todosDisp.filter(c => (c.canal_hoje || 'WhatsApp') !== 'Sales' && !ehPendente(c));
   const dispIds = new Set(dispWpp.map(d => d._cid));
 
   if (!dispWpp.length) {
@@ -2592,6 +2661,32 @@ async function _redistribuirTudoInner() {
   renderVisao(colaboradores, auloesData, sabadosData, vipsData);
 }
 
+// ── PENDENTES (aguardando definição de canal) ────────────
+// Quando um colaborador é ATIVADO no toggle, ele entra em "⏳ Aguardando"
+// em vez de cair direto no WhatsApp — assim não bagunça a rotação já
+// montada. O gestor arrasta manualmente para WhatsApp ou Sales.
+// O estado é do dia (chave com a data) e vive no navegador do gestor.
+function _pendKey() { return 'upseller_pendentes_' + HOJE_STR; }
+function getPendentes() {
+  try { return new Set(JSON.parse(localStorage.getItem(_pendKey()) || '[]')); }
+  catch(e) { return new Set(); }
+}
+function setPendente(id, on) {
+  const s = getPendentes();
+  if (on) s.add(id); else s.delete(id);
+  localStorage.setItem(_pendKey(), JSON.stringify([...s]));
+  // Limpeza de chaves de dias anteriores
+  try {
+    Object.keys(localStorage)
+      .filter(k => k.startsWith('upseller_pendentes_') && k !== _pendKey())
+      .forEach(k => localStorage.removeItem(k));
+  } catch(e) {}
+}
+function ehPendente(c) {
+  const cid = (typeof c === 'string') ? c : (c.id || c.colaborador_id);
+  return getPendentes().has(cid);
+}
+
 // ── CANAIS DE ATENDIMENTO (drag-and-drop) ────────────────
 // ══════════════════════════════════════════════════════════════════════
 // renderCanais()
@@ -2602,8 +2697,9 @@ async function _redistribuirTudoInner() {
 // ══════════════════════════════════════════════════════════════════════
 function renderCanais() {
   const dispon = colaboradores.filter(c => c.disponivel_hoje !== false && c.faz_atendimento !== false);
-  const wpp = dispon.filter(c => (c.canal_hoje || 'WhatsApp') !== 'Sales');
-  const sales = dispon.filter(c => c.canal_hoje === 'Sales');
+  const pend  = dispon.filter(c => ehPendente(c));
+  const wpp   = dispon.filter(c => !ehPendente(c) && (c.canal_hoje || 'WhatsApp') !== 'Sales');
+  const sales = dispon.filter(c => !ehPendente(c) && c.canal_hoje === 'Sales');
 
   const renderCard = c => {
     const cid = c.id || c.colaborador_id;
@@ -2612,9 +2708,11 @@ function renderCanais() {
     const emAlmoco = c._em_almoco === true;
     const meta = emAlmoco
       ? '🍽️ Em almoço — grupos cedidos'
-      : c.canal_hoje === 'Sales'
-        ? 'SalesSmartly — sem grupos'
-        : `${nGrupos} grupo${nGrupos===1?'':'s'}${temHome ? ' • 🏠 Home' : ''}`;
+      : ehPendente(c)
+        ? '⏳ Aguardando definição de canal'
+        : c.canal_hoje === 'Sales'
+          ? 'SalesSmartly — sem grupos'
+          : `${nGrupos} grupo${nGrupos===1?'':'s'}${temHome ? ' • 🏠 Home' : ''}`;
     return `<div class="canal-card ${temHome?'home-marker':''}${emAlmoco?' em-almoco':''}" draggable="true"
                  ondragstart="onDragStart(event,'${cid}')"
                  ondragend="onDragEnd(event)"
@@ -2627,6 +2725,14 @@ function renderCanais() {
     </div>`;
   };
 
+  const elPend = document.getElementById('canal-Pendente');
+  if (elPend) {
+    elPend.innerHTML = pend.length
+      ? pend.map(renderCard).join('')
+      : '<div style="color:var(--muted);font-size:12px;padding:8px 4px;">Ninguém aguardando. Ao ativar alguém na disponibilidade, a pessoa aparece aqui.</div>';
+    const cp = document.getElementById('count-Pendente');
+    if (cp) cp.textContent = pend.length;
+  }
   document.getElementById('canal-WhatsApp').innerHTML = wpp.map(renderCard).join('');
   document.getElementById('canal-Sales').innerHTML    = sales.map(renderCard).join('');
   document.getElementById('count-WhatsApp').textContent = wpp.length;
@@ -2660,10 +2766,28 @@ async function onDrop(ev, novoCanal) {
 
   const c = colaboradores.find(x => (x.id||x.colaborador_id) === id);
   if (!c) return;
-  const canalAtual = c.canal_hoje || 'WhatsApp';
+  const eraPendente = ehPendente(id);
+  const canalAtual = eraPendente ? 'Pendente' : (c.canal_hoje || 'WhatsApp');
   if (canalAtual === novoCanal) return;
 
+  // ── Soltou na coluna "⏳ Aguardando": remove o canal do dia ──
+  if (novoCanal === 'Pendente') {
+    setPendente(id, true);
+    c.canal_hoje = null;
+    await fetch(`${SB_URL}/rest/v1/numeros_atribuicoes?colaborador_id=eq.${id}&data=eq.${HOJE_STR}`, {
+      method: 'DELETE', headers: hdrs(true)
+    }).catch(() => {});
+    await fetch(`${SB_URL}/rest/v1/escalas?colaborador_id=eq.${id}&data=eq.${HOJE_STR}`, {
+      method: 'DELETE', headers: hdrs(true)
+    }).catch(() => {});
+    criarNotif(id, '⏳ Canal em definição',
+      'Você está aguardando o gestor definir seu canal de atendimento de hoje.', 'info');
+    await redistribuirTudo();
+    return;
+  }
+
   // Otimista
+  if (eraPendente) setPendente(id, false);
   c.canal_hoje = novoCanal;
 
   // Marcar exceção manual: durante o bloco de almoço atual, esta pessoa
@@ -2690,7 +2814,8 @@ async function onDrop(ev, novoCanal) {
   // Persistir canal
   const ok = await upsertCanalEscala(id, novoCanal);
   if (!ok) {
-    c.canal_hoje = canalAtual;
+    if (eraPendente) { setPendente(id, true); c.canal_hoje = null; }
+    else c.canal_hoje = canalAtual;
     renderCanais(); renderEscala(colaboradores);
     renderNumeros(); renderVisao(colaboradores, auloesData, sabadosData, vipsData);
     alert('Falha ao atualizar canal. Revertido.');
@@ -2767,7 +2892,7 @@ async function distribuirGrupos() {
     const todosDisponiveis = colaboradores
       .filter(c => c.disponivel_hoje !== false && c.ativo !== false && c.faz_atendimento !== false)
       .map(c => ({ ...c, _cid: c.id || c.colaborador_id }));
-    const disponiveis = todosDisponiveis.filter(c => (c.canal_hoje || 'WhatsApp') !== 'Sales');
+    const disponiveis = todosDisponiveis.filter(c => (c.canal_hoje || 'WhatsApp') !== 'Sales' && !ehPendente(c));
 
     if (!disponiveis.length) {
       alert('Nenhum colaborador disponível no WhatsApp!');
@@ -3097,8 +3222,8 @@ function renderVisao(escala, auloes, sabados, vips) {
 
   // Ordenar: WhatsApp primeiro, SalesSmartly depois (desempate alfabético)
   disponiveis.sort((a, b) => {
-    const canalA = a.canal_hoje === 'Sales' ? 1 : 0;
-    const canalB = b.canal_hoje === 'Sales' ? 1 : 0;
+    const canalA = ehPendente(a) ? 2 : (a.canal_hoje === 'Sales' ? 1 : 0);
+    const canalB = ehPendente(b) ? 2 : (b.canal_hoje === 'Sales' ? 1 : 0);
     if (canalA !== canalB) return canalA - canalB;
     return (a.nome || '').localeCompare(b.nome || '');
   });
@@ -3118,7 +3243,7 @@ function renderVisao(escala, auloes, sabados, vips) {
     const numNome = atrib ? atrib.numero_nome : null;
 
     // Linha de resumo
-    const partes = [isSales ? 'SalesSmartly' : 'WhatsApp'];
+    const partes = [ehPendente(c) ? '⏳ Aguardando canal' : (isSales ? 'SalesSmartly' : 'WhatsApp')];
     if (numNome) partes.push(numNome);
     if (nG) partes.push(`${nG}G`);
     if (nV) partes.push(`${nV} VIP${nV>1?'s':''}`);
@@ -3385,7 +3510,7 @@ function renderNumeros() {
 
   // Colaboradores disponíveis no WhatsApp (não em Sales)
   const dispWpp = colaboradores.filter(c =>
-    c.disponivel_hoje !== false && c.faz_atendimento !== false && c.canal_hoje !== 'Sales'
+    c.disponivel_hoje !== false && c.faz_atendimento !== false && c.canal_hoje !== 'Sales' && !ehPendente(c)
   );
 
   // Colaboradores sem número atribuído hoje
@@ -3743,7 +3868,7 @@ async function tirarSnapshot() {
       sbFetch(`numeros_atribuicoes?colaborador_id=eq.${cid}&data=eq.${HOJE_STR}&select=numero_id&limit=1`).catch(() => []),
     ]);
     const snap = {
-      canal:        escala[0]?.canal ?? 'WhatsApp',
+      canal:        escala[0]?.canal ?? 'Pendente', // sem registro = aguardando definição
       disponivel:   colab[0]?.disponivel_hoje ?? true,
       gruposIds:    grupos.map(g => g.id).join(','),
       gruposQtd:    grupos.length,
@@ -3763,13 +3888,16 @@ async function verificarMudancas() {
 
   let recarregar = false;
 
-  // 1. Canal mudou (WhatsApp ↔ SalesSmartly)
+  // 1. Canal mudou (WhatsApp ↔ SalesSmartly ↔ Aguardando)
   if (antes.canal !== agora.canal) {
-    const emoji = agora.canal === 'Sales' ? '💼' : '💬';
+    const emoji = agora.canal === 'Sales' ? '💼' : agora.canal === 'Pendente' ? '⏳' : '💬';
+    const msgCanal = agora.canal === 'Pendente'
+      ? 'Seu canal de hoje está sendo definido pelo gestor'
+      : `Você foi movido para ${agora.canal === 'Sales' ? 'SalesSmartly' : 'WhatsApp'}`;
     notificarRotacao(
       `${emoji} Canal atualizado`,
-      `Você foi movido para ${agora.canal === 'Sales' ? 'SalesSmartly' : 'WhatsApp'}`,
-      agora.canal === 'Sales' ? 'orange' : 'green'
+      msgCanal,
+      agora.canal === 'Sales' ? 'orange' : agora.canal === 'Pendente' ? 'blue' : 'green'
     );
     recarregar = true;
   }
@@ -4151,7 +4279,7 @@ async function renderAdminColabs() {
   const el = document.getElementById('admin-colab-list');
   el.innerHTML = '<div class="loading"><div class="spinner"></div> Carregando...</div>';
   try {
-    colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido,email,data_inicio,is_gestor,is_super_gestor,permissoes_gestor,ativo,faz_atendimento,faz_aulao,disponivel_hoje,periodo_almoco&order=nome.asc');
+    colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido,email,data_inicio,is_gestor,is_super_gestor,atendente_pleno,permissoes_gestor,ativo,faz_atendimento,faz_aulao,disponivel_hoje,periodo_almoco&order=nome.asc');
     if (!colabsAdmin.length) { el.innerHTML = '<div class="error-msg">Nenhum colaborador.</div>'; return; }
     el.innerHTML = `<table class="admin-table">
       <thead><tr><th>Nome</th><th>E-mail</th><th>Início</th><th>Status</th><th>Almoço</th><th>Gestor</th><th>Ativo</th><th></th></tr></thead>
@@ -4326,7 +4454,7 @@ async function salvarColab() {
   if (ok) {
     fecharModal('colab-modal');
     showToast(id ? 'Colaborador atualizado!' : 'Colaborador criado!');
-    colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido,email,data_inicio,is_gestor,is_super_gestor,permissoes_gestor,ativo,faz_atendimento,faz_aulao,periodo_almoco&order=nome.asc').catch(() => colabsAdmin);
+    colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido,email,data_inicio,is_gestor,is_super_gestor,atendente_pleno,permissoes_gestor,ativo,faz_atendimento,faz_aulao,periodo_almoco&order=nome.asc').catch(() => colabsAdmin);
     await renderAdminColabs();
     colaboradores = await sbFetchSvc('v_situacao_hoje').catch(() => colaboradores);
     renderDisponibilidade();
@@ -4752,6 +4880,7 @@ async function renderAlmoco() {
       `<th colspan="2" style="text-align:center;border-bottom:1px solid var(--border);padding:8px 4px;${idx > 0 ? 'border-left:1px solid var(--border);' : ''}">
         <div style="font-size:11px;color:var(--muted);">${d.label}</div>
         <div style="font-size:13px;font-weight:600;color:var(--text);">${d.dia}/${d.mes}</div>
+        <button class="btn-icon" title="Limpar a escala de almoço deste dia" onclick="limparDiaAlmoco('${d.data}')" style="font-size:10px;padding:1px 6px;margin-top:3px;">🗑️</button>
       </th>`
     ).join('');
 
@@ -4796,6 +4925,7 @@ async function renderAlmoco() {
         <div style="display:flex;gap:8px;">
           <button class="btn btn-outline" onclick="navegarSemanaAlmoco(-1)">‹ Anterior</button>
           <button class="btn btn-outline" onclick="navegarSemanaAlmoco(1)">Próxima ›</button>
+          <button class="btn btn-outline" style="color:#f87171;border-color:rgba(239,68,68,0.35);" onclick="limparSemanaAlmoco()">🗑️ Limpar semana</button>
           <button class="btn btn-primary" onclick="gerarEscalaAlmocoAuto()">⚡ Gerar automático</button>
         </div>
       </div>
@@ -4821,6 +4951,30 @@ async function renderAlmoco() {
 function navegarSemanaAlmoco(dir) {
   almocoSemOffset += dir;
   renderAlmoco();
+}
+
+// ── LIMPAR ESCALA DE ALMOÇO (semana inteira ou dia individual) ──
+function _diasSemanaAlmoco() {
+  const hj = new Date(); hj.setHours(0,0,0,0);
+  const dow = hj.getDay() || 7;
+  const seg = new Date(hj); seg.setDate(hj.getDate() - (dow - 1) + (almocoSemOffset * 7));
+  const dias = [];
+  for (let i = 0; i < 5; i++) { const d = new Date(seg); d.setDate(seg.getDate() + i); dias.push(d.toISOString().slice(0,10)); }
+  return dias;
+}
+async function limparSemanaAlmoco() {
+  const dias = _diasSemanaAlmoco();
+  const fmt = ds => ds.split('-').reverse().join('/');
+  if (!confirm(`Apagar TODA a escala de almoço da semana de ${fmt(dias[0])} a ${fmt(dias[4])}?\n\nDepois é só clicar em "⚡ Gerar automático" para refazer.`)) return;
+  const ok = await sbDelete('escala_almoco_diaria', `data=gte.${dias[0]}&data=lte.${dias[4]}`);
+  if (ok) { showToast('🗑️ Semana de almoço limpa.'); await renderAlmoco(); }
+  else showToast('Erro ao limpar.', 'error');
+}
+async function limparDiaAlmoco(data) {
+  if (!confirm(`Apagar a escala de almoço do dia ${data.split('-').reverse().join('/')}?`)) return;
+  const ok = await sbDelete('escala_almoco_diaria', `data=eq.${data}`);
+  if (ok) { showToast('🗑️ Dia limpo.'); await renderAlmoco(); }
+  else showToast('Erro ao limpar.', 'error');
 }
 
 // Ciclo de canais: vazio → WhatsApp → Sales → Almoço → vazio (delete)
@@ -4879,7 +5033,7 @@ async function gerarEscalaAlmocoAuto() {
 
 Regra:
 - Cada colaborador tem 1 turno de almoço (12-13h ou 13-14h) e o outro turno fica no canal da Diária.
-- Das 4 pessoas em WhatsApp por dia: 2 almoçam 12-13h e 2 almoçam 13-14h (preferência por periodo_almoco do cadastro).
+- Das pessoas em WhatsApp por dia: metade almoça 12-13h e metade 13-14h (preferência por periodo_almoco do cadastro).
 - Atendentes plenos (Ricardo, Lucca) e novatos: ficam em Sales nos dois turnos (almoçam num e Sales no outro).
 
 ⚠️ Dias/pessoas já cadastrados NÃO serão sobrescritos.`)) return;
@@ -5318,6 +5472,7 @@ let sabadosAdmin = [];
 async function renderAdminSabados() {
   const el = document.getElementById('admin-sabados-list');
   el.innerHTML = '<div class="loading"><div class="spinner"></div> Carregando...</div>';
+  renderSabadoGrupos(); // seção de grupos fixos carrega em paralelo
   try {
     // Buscar sem FK join para evitar erros 400
     const seteDiasAtras = new Date(); seteDiasAtras.setDate(seteDiasAtras.getDate() - 7);
@@ -5439,6 +5594,181 @@ async function removerSabado(data) {
   if (!confirm(`Remover todos os escalados do sábado ${data}?`)) return;
   const ok = await sbDelete('rotacao_sabados', `data=eq.${data}`);
   if (ok) { showToast('Sábado removido.'); await new Promise(r => setTimeout(r, 400)); await renderAdminSabados(); }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// GRUPOS FIXOS DE SÁBADO
+// Tabela: sabado_grupos (id, nome, ordem, membros uuid[])
+// Permite montar grupos manualmente e gerar a rotação seguindo a ordem.
+// ══════════════════════════════════════════════════════════════════════
+let sabGrupos = [];
+
+const SQL_SABADO_GRUPOS = `CREATE TABLE IF NOT EXISTS sabado_grupos (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  nome text NOT NULL,
+  ordem int NOT NULL DEFAULT 1,
+  membros uuid[] NOT NULL DEFAULT '{}',
+  criado_em timestamptz DEFAULT now()
+);
+ALTER TABLE sabado_grupos DISABLE ROW LEVEL SECURITY;`;
+
+async function renderSabadoGrupos() {
+  const el = document.getElementById('sabado-grupos-list');
+  if (!el) return;
+  el.innerHTML = '<div class="loading"><div class="spinner"></div> Carregando...</div>';
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/sabado_grupos?select=id,nome,ordem,membros&order=ordem.asc`, {
+      headers: { 'apikey': SB_KEY_SVC || SB_KEY, 'Authorization': `Bearer ${SB_KEY_SVC || SB_KEY}` }
+    });
+    if (!r.ok) {
+      const t = await r.text().catch(() => '');
+      if (r.status === 404 || /does not exist|PGRST205|Could not find the table/i.test(t)) {
+        el.innerHTML = `<div class="info-box" style="border-color:rgba(245,158,11,0.35);">
+          ⚠️ A tabela <strong>sabado_grupos</strong> ainda não existe no Supabase.<br>
+          Rode este SQL no SQL Editor e recarregue a página:
+          <pre style="white-space:pre-wrap;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;margin-top:8px;font-size:11px;color:var(--text);">${SQL_SABADO_GRUPOS}</pre>
+        </div>`;
+        return;
+      }
+      throw new Error('HTTP ' + r.status);
+    }
+    sabGrupos = await r.json();
+    if (!colabsAdmin.length) {
+      colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido,data_inicio,ativo,faz_atendimento&order=nome.asc').catch(() => []);
+    }
+    const nomeDe = id => { const c = colabsAdmin.find(x => x.id === id); return c ? (c.apelido || c.nome) : '?'; };
+    if (!sabGrupos.length) {
+      el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:10px 0;">Nenhum grupo criado ainda. Clique em "+ Novo grupo" para montar os grupos fixos.</div>';
+      return;
+    }
+    el.innerHTML = `<table class="admin-table">
+      <thead><tr><th style="width:70px;">Ordem</th><th>Nome</th><th>Membros</th><th></th></tr></thead>
+      <tbody>${sabGrupos.map(g => `<tr>
+        <td style="color:var(--text);font-weight:600;">${g.ordem}º</td>
+        <td style="color:var(--text);font-weight:500;">${g.nome}</td>
+        <td><div style="display:flex;flex-wrap:wrap;gap:5px;">${(g.membros||[]).map(m => `<span class="sab-rot-name">${nomeDe(m)}</span>`).join('') || '<span style="color:var(--muted);font-size:12px;">— vazio —</span>'}</div></td>
+        <td><div style="display:flex;gap:6px;">
+          <button class="btn-icon" onclick="abrirModalSabGrupo('${g.id}')" title="Editar">✏️</button>
+          <button class="btn-icon danger" onclick="removerSabGrupo('${g.id}','${(g.nome||'').replace(/'/g,'')}')" title="Remover">🗑️</button>
+        </div></td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+  } catch(e) { el.innerHTML = `<div class="error-msg">Erro: ${e.message}</div>`; }
+}
+
+async function abrirModalSabGrupo(id) {
+  if (!colabsAdmin.length) {
+    colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido,data_inicio,ativo,faz_atendimento&order=nome.asc').catch(() => []);
+  }
+  const g = id ? sabGrupos.find(x => x.id === id) : null;
+  document.getElementById('sabgrupo-edit-id').value = g ? g.id : '';
+  document.getElementById('sabgrupo-nome').value = g ? (g.nome || '') : '';
+  document.getElementById('sabgrupo-ordem').value = g ? (g.ordem || 1) : (sabGrupos.length + 1);
+  const membros = g ? (g.membros || []) : [];
+  const hoje_real = new Date();
+  const ativos = colabsAdmin.filter(c => c.ativo !== false && c.faz_atendimento !== false);
+  const sel = document.getElementById('sabgrupo-colab-selector');
+  sel.innerHTML = ativos.map(c => {
+    const novato = c.data_inicio ? (hoje_real - new Date(c.data_inicio + 'T12:00:00')) / (1000*60*60*24) < 90 : false;
+    return `<button type="button" class="grupo-sel-btn ${membros.includes(c.id) ? 'selected' : ''}" data-id="${c.id}" onclick="this.classList.toggle('selected')">${c.apelido||c.nome}${novato ? ' 🕐' : ''}</button>`;
+  }).join('');
+  document.getElementById('sabgrupo-modal-titulo').textContent = g ? '✏️ Editar Grupo de Sábado' : '➕ Novo Grupo de Sábado';
+  document.getElementById('sabgrupo-modal').classList.add('open');
+}
+
+async function salvarSabGrupo() {
+  const id = document.getElementById('sabgrupo-edit-id').value;
+  const nome = document.getElementById('sabgrupo-nome').value.trim();
+  const ordem = parseInt(document.getElementById('sabgrupo-ordem').value, 10) || 1;
+  const membros = [...document.querySelectorAll('#sabgrupo-colab-selector .grupo-sel-btn.selected')].map(b => b.dataset.id);
+  if (!nome) { alert('Informe o nome do grupo.'); return; }
+  if (!membros.length) { alert('Selecione pelo menos um membro.'); return; }
+  const body = { nome, ordem, membros };
+  const ok = id ? await sbPatch('sabado_grupos', `id=eq.${id}`, body) : await sbPost('sabado_grupos', body);
+  if (ok) {
+    fecharModal('sabgrupo-modal');
+    showToast('Grupo salvo!');
+    await renderSabadoGrupos();
+  } else showToast('Erro ao salvar grupo.', 'error');
+}
+
+async function removerSabGrupo(id, nome) {
+  if (!confirm(`Remover o grupo "${nome}"?\n(Os sábados já gerados não são alterados.)`)) return;
+  const ok = await sbDelete('sabado_grupos', `id=eq.${id}`);
+  if (ok) { showToast('Grupo removido.'); await renderSabadoGrupos(); }
+}
+
+// gerarSabadosPorGrupos()
+// Gera os próximos 12 sábados SEM registros usando os grupos fixos na ordem.
+// - Descobre qual grupo trabalhou no último sábado cadastrado (maior
+//   sobreposição de membros) e começa do grupo seguinte na ordem.
+// - Novatos entram em TODOS os sábados, além do grupo da vez.
+// - Sábados já cadastrados nunca são alterados.
+async function gerarSabadosPorGrupos() {
+  if (!sabGrupos.length) {
+    await renderSabadoGrupos();
+    if (!sabGrupos.length) { alert('Crie pelo menos um grupo (em "Grupos fixos de sábado") antes de gerar por grupos.'); return; }
+  }
+  colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido,data_inicio,ativo,faz_atendimento&order=nome.asc').catch(() => colabsAdmin);
+  const ativosIds = new Set(colabsAdmin.filter(c => c.ativo !== false && c.faz_atendimento !== false).map(c => c.id));
+  const isNovatoNaData = (dataInicio, dataRef) => {
+    if (!dataInicio) return false;
+    return (new Date(dataRef + 'T12:00:00') - new Date(dataInicio + 'T12:00:00')) / (1000*60*60*24) < 90;
+  };
+  const grupos = [...sabGrupos].sort((a,b) => (a.ordem||0) - (b.ordem||0));
+
+  // Histórico completo pra achar o último sábado cadastrado e os já existentes
+  const hist = await fetch(`${SB_URL}/rest/v1/rotacao_sabados?select=data,colaborador_id&order=data.asc&limit=2000`, {
+    headers: { 'apikey': SB_KEY_SVC || SB_KEY, 'Authorization': `Bearer ${SB_KEY_SVC || SB_KEY}` }
+  }).then(r => r.ok ? r.json() : []).catch(() => []);
+  const datasExistentes = new Set(hist.map(h => h.data));
+  const ultimaData = hist.length ? hist[hist.length - 1].data : null;
+
+  // Grupo inicial: o seguinte ao de maior sobreposição com o último sábado
+  let gi = 0;
+  if (ultimaData) {
+    const membrosUlt = new Set(hist.filter(h => h.data === ultimaData).map(h => h.colaborador_id));
+    let melhor = -1, melhorOverlap = 0;
+    grupos.forEach((g, idx) => {
+      const ov = (g.membros||[]).filter(m => membrosUlt.has(m)).length;
+      if (ov > melhorOverlap) { melhorOverlap = ov; melhor = idx; }
+    });
+    if (melhor >= 0) gi = (melhor + 1) % grupos.length;
+  }
+
+  // Próximos 12 sábados ainda sem registro
+  const sabados = [];
+  const d = new Date();
+  let guard = 0;
+  while (sabados.length < 12 && guard < 400) {
+    d.setDate(d.getDate() + 1); guard++;
+    if (d.getDay() !== 6) continue;
+    const ds = d.toISOString().slice(0,10);
+    if (datasExistentes.has(ds)) continue;
+    sabados.push(ds);
+  }
+  if (!sabados.length) { alert('Não encontrei sábados livres para gerar.'); return; }
+
+  const fmt = ds => ds.split('-').reverse().join('/');
+  const preview = sabados.slice(0, 4).map((ds, i) => `${fmt(ds)} → ${grupos[(gi + i) % grupos.length].nome}`).join('\n');
+  if (!confirm(`Gerar ${sabados.length} sábado(s) usando os grupos fixos na ordem?\n\nInício da sequência:\n${preview}\n...\n\n⭐ Novatos entram em todos os sábados automaticamente.\n⚠️ Sábados já cadastrados NÃO serão alterados.`)) return;
+
+  let inseridos = 0, erros = 0;
+  for (const ds of sabados) {
+    const g = grupos[gi % grupos.length]; gi++;
+    const ids = new Set((g.membros||[]).filter(m => ativosIds.has(m)));
+    // Novatos na data entram sempre
+    for (const c of colabsAdmin) {
+      if (!ativosIds.has(c.id)) continue;
+      if (isNovatoNaData(c.data_inicio, ds)) ids.add(c.id);
+    }
+    for (const cid of ids) {
+      const ok = await sbPost('rotacao_sabados', { colaborador_id: cid, data: ds });
+      if (ok) inseridos++; else erros++;
+    }
+  }
+  showToast(`Sábados por grupos: ${inseridos} registro(s) inserido(s)${erros ? `, ${erros} erro(s)` : ''}.`, erros ? 'error' : 'success');
+  await renderAdminSabados();
 }
 
 // gerarSabadosAuto()
@@ -5640,6 +5970,56 @@ function initSemana() {
   atualizarNavSemana();
 }
 
+// ── CONFIG DA REGRA DE ROTAÇÃO (editável na tela, sem mexer em código) ──
+// Persistida no localStorage do navegador do gestor.
+function cfgQtdWpp() {
+  const v = parseInt(localStorage.getItem('upseller_cfg_qtd_wpp'), 10);
+  return (v >= 1 && v <= 20) ? v : 4;
+}
+function cfgMinVetSales() {
+  const raw = localStorage.getItem('upseller_cfg_min_vet_sales');
+  const v = parseInt(raw, 10);
+  return (raw !== null && !isNaN(v) && v >= 0 && v <= 20) ? v : 2;
+}
+function salvarConfigEscala() {
+  const q = parseInt(document.getElementById('cfg-qtd-wpp')?.value, 10);
+  const m = parseInt(document.getElementById('cfg-min-vet-sales')?.value, 10);
+  if (!(q >= 1 && q <= 20)) { alert('Informe um valor entre 1 e 20 para "No WhatsApp por dia".'); return; }
+  if (!(m >= 0 && m <= 20)) { alert('Informe um valor entre 0 e 20 para "Mín. veteranos no Sales".'); return; }
+  localStorage.setItem('upseller_cfg_qtd_wpp', String(q));
+  localStorage.setItem('upseller_cfg_min_vet_sales', String(m));
+  showToast(`⚙️ Regra salva: ${q} no WhatsApp por dia, mín. ${m} veterano(s) no Sales.`);
+  renderEscalaSemanal();
+}
+
+// ── LIMPAR ESCALA SEMANAL (semana inteira ou dia individual) ──
+function _diasSemanaVisivel() {
+  const seg = getSegundaFeira(semanaOffset);
+  const dias = [];
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(seg); d.setDate(d.getDate() + i);
+    dias.push(d.toISOString().slice(0,10));
+  }
+  return dias;
+}
+async function limparSemanaEscala() {
+  const dias = _diasSemanaVisivel();
+  const fmt = ds => ds.split('-').reverse().join('/');
+  if (!confirm(`Apagar TODA a escala da semana de ${fmt(dias[0])} a ${fmt(dias[4])}?\n\nAs células voltam para a distribuição padrão e você pode ajustar a regra e gerar de novo.`)) return;
+  const ok = await sbDelete('escala_semanal', `data=gte.${dias[0]}&data=lte.${dias[4]}`);
+  if (ok) { showToast('🗑️ Semana limpa.'); escalaSemanaBD = []; await renderEscalaSemanal(); }
+  else showToast('Erro ao limpar semana.', 'error');
+}
+async function limparDiaEscala(data) {
+  if (!confirm(`Apagar a escala do dia ${data.split('-').reverse().join('/')}?`)) return;
+  const ok = await sbDelete('escala_semanal', `data=eq.${data}`);
+  if (ok) {
+    showToast('🗑️ Dia limpo.');
+    escalaSemanaBD = escalaSemanaBD.filter(e => e.data !== data);
+    await renderEscalaSemanal(true);
+  } else showToast('Erro ao limpar dia.', 'error');
+}
+
 function semanaAnterior() { semanaOffset--; atualizarNavSemana(); renderEscalaSemanal(); }
 function proximaSemana() { semanaOffset++; atualizarNavSemana(); renderEscalaSemanal(); }
 
@@ -5662,6 +6042,12 @@ function atualizarNavSemana() {
 async function renderEscalaSemanal(skipFetch = false) {
   const el = document.getElementById('escala-semana-container');
   el.innerHTML = '<div class="loading"><div class="spinner"></div> Carregando...</div>';
+
+  // Preenche os campos de configuração da regra (sem sobrescrever edição em andamento)
+  const inpQtd = document.getElementById('cfg-qtd-wpp');
+  const inpMin = document.getElementById('cfg-min-vet-sales');
+  if (inpQtd && inpQtd.value === '') inpQtd.value = cfgQtdWpp();
+  if (inpMin && inpMin.value === '') inpMin.value = cfgMinVetSales();
 
   const seg = getSegundaFeira(semanaOffset);
   const dias = [];
@@ -5694,22 +6080,19 @@ async function renderEscalaSemanal(skipFetch = false) {
     const isNovatoHoje = (dataInicio) => isNovatoNaData(dataInicio, HOJE_STR);
 
     // Calcula quais IDs ficam no Sales em cada dia (distribuição padrão)
-    // Regra: novatos → Sales sempre. Veteranos:
-    //   - Se há novatos: mínimo 2 veteranos no Sales (rodízio)
-    //   - Se não há novatos: 50/50 (ceil(total/2) no Sales), rodízio
+    // Regra: novatos → Sales sempre. Veteranos: cfgQtdWpp() ficam no WhatsApp
+    // por dia (rodízio); quando há novatos, garante cfgMinVetSales() veteranos
+    // no Sales. Ambos configuráveis na barra "⚙️ Regra da rotação".
     const calcSalesIds = (data, dIdx) => {
       const vets = ativos.filter(c => !isNovatoNaData(c.data_inicio, data));
       const novs = ativos.filter(c => isNovatoNaData(c.data_inicio, data));
       const salesIds = new Set();
-      // Quantos veteranos vão para Sales?
-      let qtdVetSales;
-      if (novs.length === 0) {
-        // Sem novatos: 50/50
-        qtdVetSales = Math.ceil(vets.length / 2);
-      } else {
-        // Com novatos: mínimo 2 veteranos
-        qtdVetSales = Math.min(2, vets.length);
+      // Quantos veteranos ficam no WhatsApp neste dia (configurável na tela)
+      let qtdWppDia = Math.min(cfgQtdWpp(), vets.length);
+      if (novs.length > 0) {
+        qtdWppDia = Math.min(qtdWppDia, Math.max(vets.length - cfgMinVetSales(), 0));
       }
+      const qtdVetSales = Math.max(vets.length - qtdWppDia, 0);
       // Rodízio: avança por dia de forma consistente (semanaOffset garante continuidade entre semanas)
       const base = (semanaOffset * 5 + dIdx) % Math.max(vets.length, 1);
       for (let i = 0; i < qtdVetSales; i++) {
@@ -5732,7 +6115,8 @@ async function renderEscalaSemanal(skipFetch = false) {
             const isFer = isFeriado(d.data);
             return `<th style="${isFer ? 'color:#f59e0b;' : ''}" title="${isFer ? nomeFeriado(d.data) : ''}">
               ${d.dia}${isFer ? ' 🏖️' : ''}<br>
-              <span style="font-weight:400;color:${isFer ? '#f59e0b' : 'var(--muted)'};font-size:10px;">${d.d.getDate()}/${d.d.getMonth()+1}</span>
+              <span style="font-weight:400;color:${isFer ? '#f59e0b' : 'var(--muted)'};font-size:10px;">${d.d.getDate()}/${d.d.getMonth()+1}</span><br>
+              <button class="btn-icon" title="Limpar a escala deste dia" onclick="limparDiaEscala('${d.data}')" style="font-size:10px;padding:1px 6px;margin-top:3px;">🗑️</button>
             </th>`;
           }).join('')}
           <th>Almoço</th>
@@ -5868,6 +6252,11 @@ async function gerarEscalaSemana() {
 
   if (!elegiveis.length) { alert('Nenhum colaborador elegível.'); return; }
 
+  // Regra configurável na tela (barra "⚙️ Regra da rotação")
+  const QTD_WPP = cfgQtdWpp();
+  const MIN_VET_SALES = cfgMinVetSales();
+  const LIM_POR_HORARIO = Math.max(1, Math.ceil(QTD_WPP / 2));
+
   // Helpers
   const isNovatoNaData = (dataInicio, dataRef) => {
     if (!dataInicio) return false;
@@ -5916,12 +6305,12 @@ População: ${elegiveis.length} colaboradores
 - Atendentes plenos (sempre Sales): ${exPlenos.length}
 - Novatos (sempre Sales): ${exNov.length}
 
-Regra por dia: 4 em WhatsApp, restante em Sales (mín. 2 veteranos no Sales).
+Regra por dia: ${QTD_WPP} em WhatsApp, restante em Sales (mín. ${MIN_VET_SALES} veterano(s) no Sales quando há novatos).
 Quem é Home do dia entra automaticamente no WhatsApp.
 
 ⚠️ Dias/pessoas já cadastrados NÃO serão sobrescritos.`)) return;
 
-  // Algoritmo de rodízio: por dia, escolhe 4 pessoas pra WhatsApp respeitando regras.
+  // Algoritmo de rodízio: por dia, escolhe QTD_WPP pessoas pra WhatsApp respeitando regras.
   // Mantém um índice global de "qual veterano elegível foi pra WPP por último"
   // pra distribuir mais ou menos uniforme ao longo dos 30 dias.
   const veteranosRodizio = elegiveis.filter(c => !isAtendentePleno(c));
@@ -5938,7 +6327,7 @@ Quem é Home do dia entra automaticamente no WhatsApp.
     // Veteranos elegíveis a WPP NESTA DATA: não pode ser novato nesta data nem atendente pleno
     const candidatosWpp = veteranosRodizio.filter(c => !isNovatoNaData(c.data_inicio, data));
 
-    // Define o set final de quem fica em WPP (4 vagas)
+    // Define o set final de quem fica em WPP (QTD_WPP vagas)
     const wppHoje = new Set();
 
     // Vaga 1: Home do dia (se existir e for elegível a WPP)
@@ -5977,32 +6366,33 @@ Quem é Home do dia entra automaticamente no WhatsApp.
       .filter(c => !wppHoje.has(c.id))
       .sort((a,b) => (wppCount.get(a.id) || 0) - (wppCount.get(b.id) || 0));
 
-    // 1ª passagem: respeita o limite de 2 por horário
+    // 1ª passagem: respeita o limite por horário (metade das vagas por turno)
     for (const c of restantes) {
-      if (wppHoje.size >= 4) break;
+      if (wppHoje.size >= QTD_WPP) break;
       const { p12, p13 } = contaPeriodo(wppHoje);
       const p = periodoOf(c);
-      if (p === '12' && p12 >= 2) continue; // já tem 2 do 12-13, pula
-      if (p === '13' && p13 >= 2) continue; // já tem 2 do 13-14, pula
+      if (p === '12' && p12 >= LIM_POR_HORARIO) continue; // turno 12-13 cheio, pula
+      if (p === '13' && p13 >= LIM_POR_HORARIO) continue; // turno 13-14 cheio, pula
       wppHoje.add(c.id);
     }
 
     // 2ª passagem (fallback): se ainda faltarem vagas, ignora limite e completa
-    if (wppHoje.size < 4) {
+    if (wppHoje.size < QTD_WPP) {
       for (const c of restantes) {
-        if (wppHoje.size >= 4) break;
+        if (wppHoje.size >= QTD_WPP) break;
         if (wppHoje.has(c.id)) continue;
         wppHoje.add(c.id);
       }
     }
 
-    // Verifica regra "mínimo 2 veteranos no Sales"
-    // Veteranos que NÃO estão em WPP nesta data:
+    // Verifica regra "mínimo de veteranos no Sales" (configurável).
+    // Só se aplica quando HÁ novatos na data — sem novatos, quem manda é QTD_WPP.
+    const temNovatosNaData = elegiveis.some(c => !isAtendentePleno(c) && isNovatoNaData(c.data_inicio, data));
     const vetsNoSales = candidatosWpp.filter(c => !wppHoje.has(c.id));
-    if (vetsNoSales.length < 2) {
-      // Tira um do WPP (não a Home) e devolve pro Sales pra cumprir o mínimo
+    if (temNovatosNaData && vetsNoSales.length < MIN_VET_SALES) {
+      // Tira do WPP (não a Home) e devolve pro Sales pra cumprir o mínimo
       const removiveis = [...wppHoje].filter(id => id !== homeId);
-      while (vetsNoSales.length < 2 && removiveis.length) {
+      while (vetsNoSales.length < MIN_VET_SALES && removiveis.length) {
         const tira = removiveis.shift();
         wppHoje.delete(tira);
         vetsNoSales.push(candidatosWpp.find(c => c.id === tira));
@@ -6829,7 +7219,7 @@ function iniciarPollingNotif() {
 
 function preCarregarAdmin() {
   if (!currentColaborador?.is_gestor) return;
-  sbFetch('colaboradores?select=id,nome,apelido,email,data_inicio,is_gestor,ativo,faz_atendimento,faz_aulao,periodo_almoco&order=nome.asc')
+  sbFetch('colaboradores?select=id,nome,apelido,email,data_inicio,is_gestor,is_super_gestor,atendente_pleno,permissoes_gestor,ativo,faz_atendimento,faz_aulao,periodo_almoco&order=nome.asc')
     .then(data => { colabsAdmin = data; })
     .catch(() => {});
 }
