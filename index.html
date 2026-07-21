@@ -1083,6 +1083,13 @@
       <div class="loading" style="grid-column:1/-1"><div class="spinner"></div> Carregando...</div>
     </div>
 
+    <!-- Almoço de hoje -->
+    <div class="visao-equipe-title" style="margin-top:32px;">🍽️ Almoço de Hoje</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Quem almoça em cada turno e quem segura o WhatsApp enquanto isso · quem está indisponível hoje aparece riscado</div>
+    <div id="visao-almoco-container">
+      <div class="loading"><div class="spinner"></div> Carregando...</div>
+    </div>
+
   </div>
 
   <!-- ── DASHBOARD ── -->
@@ -1961,6 +1968,7 @@ let currentColaborador = null;
         currentColaborador = colab;
         aplicarSessao();
         loadAll();
+        atualizarPerfilSessao(); // sessões antigas podem não ter campos novos (ex: atendente_pleno)
         return;
       }
     } catch(e) { /* sessão inválida */ }
@@ -1968,6 +1976,20 @@ let currentColaborador = null;
   }
   mostrarLogin();
 })();
+
+// Recarrega o perfil do usuário logado direto do banco e reaplica as
+// permissões. Necessário porque sessões salvas antes de atualizações do
+// sistema podem não ter campos novos (ex: atendente_pleno, periodo_almoco).
+async function atualizarPerfilSessao() {
+  try {
+    if (!currentColaborador?.id) return;
+    const rows = await sbFetch(`colaboradores?id=eq.${currentColaborador.id}&select=id,nome,apelido,email,is_gestor,is_super_gestor,atendente_pleno,permissoes_gestor,ativo,faz_atendimento,periodo_almoco&limit=1`).catch(() => []);
+    if (!rows.length) return;
+    currentColaborador = { ...currentColaborador, ...rows[0] };
+    localStorage.setItem('upseller_session', JSON.stringify(currentColaborador));
+    aplicarPermissoesGestor();
+  } catch(e) { /* silencioso */ }
+}
 
 function mostrarLogin() {
   document.getElementById('login-screen').classList.add('visible');
@@ -2000,7 +2022,7 @@ async function fazerLogin() {
   try {
     // Buscar colaborador pelo e-mail + senha direto na tabela
     const r = await fetch(
-      `${SB_URL}/rest/v1/colaboradores?email=eq.${encodeURIComponent(email)}&senha=eq.${encodeURIComponent(senha)}&select=id,nome,apelido,email,is_gestor,is_super_gestor,permissoes_gestor,ativo,faz_atendimento&limit=1`,
+      `${SB_URL}/rest/v1/colaboradores?email=eq.${encodeURIComponent(email)}&senha=eq.${encodeURIComponent(senha)}&select=id,nome,apelido,email,is_gestor,is_super_gestor,atendente_pleno,permissoes_gestor,ativo,faz_atendimento,periodo_almoco&limit=1`,
       { headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' } }
     );
 
@@ -2043,21 +2065,22 @@ async function fazerLogin() {
   }
 }
 
-// Esconde sub-abas do Gestor baseado em permissoes_gestor do usuário logado.
-// Super-gestor: vê tudo. Gestor comum: vê só o que está em permissoes_gestor.
+// Esconde sub-abas do Gestor baseado no nível do usuário logado.
+// Super-gestor e Gestor (atendente_pleno): veem tudo.
+// Atendente parcial: vê só o que está em permissoes_gestor.
 // Não-gestor: não precisa fazer nada (a aba Gestor inteira já fica escondida).
 function aplicarPermissoesGestor() {
   const u = currentColaborador;
   if (!u?.is_gestor) return;
 
-  const isSuperGestor = !!u.is_super_gestor;
+  const acessoTotal = !!u.is_super_gestor || u.atendente_pleno === true;
   const perms = Array.isArray(u.permissoes_gestor) ? u.permissoes_gestor : [];
 
   document.querySelectorAll('.gestor-subtab[data-tab]').forEach(btn => {
     const tab = btn.dataset.tab;
-    // Super-gestor vê tudo
-    if (isSuperGestor) { btn.style.display = ''; return; }
-    // Gestor comum vê só o que está em perms
+    // Super-gestor e Gestor (pleno) veem tudo
+    if (acessoTotal) { btn.style.display = ''; return; }
+    // Atendente parcial vê só o que está em perms
     btn.style.display = perms.includes(tab) ? '' : 'none';
   });
 }
@@ -2066,7 +2089,7 @@ function aplicarPermissoesGestor() {
 function podeAcessarSubAba(tab) {
   const u = currentColaborador;
   if (!u?.is_gestor) return false;
-  if (u.is_super_gestor) return true;
+  if (u.is_super_gestor || u.atendente_pleno === true) return true;
   const perms = Array.isArray(u.permissoes_gestor) ? u.permissoes_gestor : [];
   return perms.includes(tab);
 }
@@ -3280,6 +3303,117 @@ function renderVisao(escala, auloes, sabados, vips) {
       <div class="tooltip-grupos">${tooltipInner}</div>
     </div>`;
   }).join('');
+
+  // Seção "🍽️ Almoço de Hoje" (async, independente do restante)
+  renderAlmocoHojeVisao();
+}
+
+// ── ALMOÇO DE HOJE (Visão Geral) ─────────────────────────
+// Mostra os dois turnos (12-13 e 13-14): quem está almoçando e quem
+// cobre o WhatsApp naquele bloco. Fonte: escala_almoco_diaria do dia.
+// Fallback: se a escala do dia ainda não foi gerada, agrupa os
+// disponíveis pelo periodo_almoco do cadastro.
+async function renderAlmocoHojeVisao() {
+  const el = document.getElementById('visao-almoco-container');
+  if (!el) return;
+  try {
+    const [rows, todos] = await Promise.all([
+      fetch(`${SB_URL}/rest/v1/escala_almoco_diaria?select=colaborador_id,bloco,canal&data=eq.${HOJE_STR}`, {
+        headers: { 'apikey': SB_KEY_SVC || SB_KEY, 'Authorization': `Bearer ${SB_KEY_SVC || SB_KEY}` }
+      }).then(r => r.ok ? r.json() : []).catch(() => []),
+      sbFetch('colaboradores?select=id,nome,apelido,periodo_almoco,ativo,faz_atendimento,disponivel_hoje').catch(() => [])
+    ]);
+
+    const dispIds = new Set(
+      todos.filter(c => c.ativo !== false && c.faz_atendimento !== false && c.disponivel_hoje !== false).map(c => c.id)
+    );
+    const chip = (id, cls) => {
+      const c = todos.find(x => x.id === id);
+      if (!c) return '';
+      const nm = c.apelido || c.nome;
+      const off = !dispIds.has(id);
+      const offCss = off ? 'opacity:0.4;text-decoration:line-through;' : '';
+      return `<span class="sab-rot-name" style="${cls||''}${offCss}"${off ? ' title="Indisponível hoje"' : ''}>${nm}</span>`;
+    };
+    const chips = (ids, cls) => {
+      const html = ids.map(id => chip(id, cls)).filter(Boolean).join('');
+      return html || '<span style="color:var(--muted);font-size:12px;">— ninguém —</span>';
+    };
+
+    // Estado de cada bloco em relação ao horário atual:
+    // 'antes' (ainda vai acontecer), 'agora' (em andamento), 'depois' (já encerrou)
+    const h = new Date().getHours();
+    const estadoBloco = (bloco) => {
+      const ini = bloco === '12-13' ? 12 : 13;
+      if (h < ini) return 'antes';
+      if (h === ini) return 'agora';
+      return 'depois';
+    };
+
+    const temEscalaHoje = rows.length > 0;
+    const blocos = ['12-13', '13-14'];
+    const cards = blocos.map(bloco => {
+      let almocando = [], cobrindo = [], salesBloco = [];
+      if (temEscalaHoje) {
+        // Espelha a escala do dia inteira (mesma fonte da aba Gestor → Almoço).
+        // Indisponíveis aparecem riscados, mas não somem.
+        almocando  = rows.filter(r => r.bloco === bloco && r.canal === 'Almoco').map(r => r.colaborador_id);
+        cobrindo   = rows.filter(r => r.bloco === bloco && r.canal === 'WhatsApp').map(r => r.colaborador_id);
+        salesBloco = rows.filter(r => r.bloco === bloco && r.canal === 'Sales').map(r => r.colaborador_id);
+      } else {
+        // Fallback pelo cadastro: quem tem periodo_almoco = este bloco almoça aqui
+        const p = bloco === '12-13' ? '12' : '13';
+        almocando = todos.filter(c => c.ativo !== false && c.faz_atendimento !== false && String(c.periodo_almoco || '13') === p).map(c => c.id);
+      }
+      // Cobertura real considera só quem está disponível hoje
+      const almocandoDisp = almocando.filter(id => dispIds.has(id));
+      const cobrindoDisp  = cobrindo.filter(id => dispIds.has(id));
+      const estado = estadoBloco(bloco);
+      const ativo  = estado === 'agora';
+      const passou = estado === 'depois';
+      const borda = ativo ? 'border-color:rgba(245,158,11,0.5);box-shadow:0 0 0 1px rgba(245,158,11,0.25);' : '';
+      const esmaecido = passou ? 'opacity:0.55;' : '';
+      const tagEstado = ativo
+        ? '<span style="color:#fbbf24;font-size:11px;font-weight:600;margin-left:8px;">• agora</span>'
+        : passou
+          ? '<span style="color:var(--muted);font-size:11px;font-weight:600;margin-left:8px;">✓ encerrado</span>'
+          : '';
+      // Rótulos mudam conforme o momento do dia — evita parecer que alguém
+      // "está almoçando" num turno que já acabou
+      const lblAlmoco = ativo ? '🍽️ Almoçando agora' : passou ? '🍽️ Já almoçaram' : '🍽️ Vão almoçar';
+      const lblWpp    = ativo ? '💬 Segurando o WhatsApp agora' : passou ? '💬 Seguraram o WhatsApp' : '💬 Vão segurar o WhatsApp';
+      const chipAlmocoCls = passou ? '' : 'background:rgba(245,158,11,0.12);border-color:rgba(245,158,11,0.3);color:#fbbf24;';
+      const lblSales = ativo ? '💼 No Sales agora' : passou ? '💼 Ficaram no Sales' : '💼 Vão ficar no Sales';
+      const linhaCobrindo = temEscalaHoje
+        ? `<div style="font-size:12px;color:var(--subtle);margin:10px 0 6px;">${lblWpp}</div>
+           <div style="display:flex;flex-wrap:wrap;gap:5px;">${chips(cobrindo)}</div>`
+        : '';
+      const linhaSales = (temEscalaHoje && salesBloco.length)
+        ? `<div style="font-size:12px;color:var(--subtle);margin:10px 0 6px;">${lblSales}</div>
+           <div style="display:flex;flex-wrap:wrap;gap:5px;">${chips(salesBloco)}</div>`
+        : '';
+      // Alerta: tem gente (disponível) almoçando e NINGUÉM disponível no WhatsApp
+      const alertaSemCobertura = (temEscalaHoje && almocandoDisp.length > 0 && cobrindoDisp.length === 0)
+        ? `<div style="margin-top:12px;padding:8px 10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;font-size:12px;color:#f87171;">⚠️ Nenhum colaborador disponível ${passou ? 'ficou' : 'fica'} segurando o WhatsApp neste turno — ajuste a escala de almoço (Gestor → Almoço) ou ative alguém.</div>`
+        : '';
+      return `<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;${borda}${esmaecido}">
+        <div style="font-family:'DM Serif Display',serif;font-size:16px;color:var(--text);margin-bottom:10px;">🕐 ${bloco.replace('-', 'h–')}h${tagEstado}</div>
+        <div style="font-size:12px;color:var(--subtle);margin-bottom:6px;">${lblAlmoco}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;">${chips(almocando, chipAlmocoCls)}</div>
+        ${linhaCobrindo}
+        ${linhaSales}
+        ${alertaSemCobertura}
+      </div>`;
+    }).join('');
+
+    const aviso = temEscalaHoje
+      ? ''
+      : `<div style="grid-column:1/-1;font-size:12px;color:var(--muted);margin-top:2px;">ℹ️ Escala de almoço do dia ainda não gerada — mostrando o turno do cadastro de cada um. O gestor pode gerar em Gestor → Almoço.</div>`;
+
+    el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;">${cards}${aviso}</div>`;
+  } catch(e) {
+    el.innerHTML = `<div style="color:var(--muted);font-size:13px;">Não foi possível carregar o almoço de hoje.</div>`;
+  }
 }
 
 // ── TREINAMENTOS — GESTOR ────────────────────────────────
