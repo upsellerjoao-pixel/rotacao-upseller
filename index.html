@@ -1587,6 +1587,11 @@
         <option value="13">13h–14h</option>
       </select>
     </div>
+    <div class="field">
+      <label>ID no SalesSmartly <span style="color:var(--muted);text-transform:none;letter-spacing:0;font-weight:400;">(para a extensão atribuir grupos)</span></label>
+      <input type="text" id="colab-id-sales" placeholder="Ex: 1026948" inputmode="numeric">
+      <div style="font-size:11px;color:var(--muted);margin-top:-10px;margin-bottom:14px;">Encontre em SalesSmartly → Gestão de Membros (o número embaixo do nome, ex: id: 1026948).</div>
+    </div>
     <div style="display:flex;gap:20px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end;">
       <div class="field" style="flex:1;min-width:240px;margin-bottom:0;">
         <label>Nível de acesso</label>
@@ -4485,10 +4490,10 @@ async function renderAdminColabs() {
   const el = document.getElementById('admin-colab-list');
   el.innerHTML = '<div class="loading"><div class="spinner"></div> Carregando...</div>';
   try {
-    colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido,email,data_inicio,is_gestor,is_super_gestor,atendente_pleno,permissoes_gestor,ativo,faz_atendimento,faz_aulao,disponivel_hoje,periodo_almoco&order=nome.asc');
+    colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido,email,data_inicio,is_gestor,is_super_gestor,atendente_pleno,permissoes_gestor,ativo,faz_atendimento,faz_aulao,disponivel_hoje,periodo_almoco,id_salessmartly&order=nome.asc');
     if (!colabsAdmin.length) { el.innerHTML = '<div class="error-msg">Nenhum colaborador.</div>'; return; }
     el.innerHTML = `<table class="admin-table">
-      <thead><tr><th>Nome</th><th>E-mail</th><th>Início</th><th>Status</th><th>Almoço</th><th>Gestor</th><th>Ativo</th><th></th></tr></thead>
+      <thead><tr><th>Nome</th><th>E-mail</th><th>Início</th><th>Status</th><th>Almoço</th><th>ID Sales</th><th>Gestor</th><th>Ativo</th><th></th></tr></thead>
       <tbody>${colabsAdmin.map(c => {
         const novato = calcNovato(c.data_inicio);
         const dtFmt = c.data_inicio ? (() => { const d = new Date(c.data_inicio+'T12:00:00'); return `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`; })() : '—';
@@ -4500,6 +4505,7 @@ async function renderAdminColabs() {
           <td>${dtFmt}</td>
           <td>${c.ativo === false ? '<span class="badge-inativo">Inativo</span>' : novato ? '<span class="badge-novato">🕐 Novato</span>' : '<span class="badge-veterano">✅ Veterano</span>'} ${fazAtendStr}</td>
           <td style="font-size:12px;color:var(--muted);">${almocoStr}</td>
+          <td>${c.id_salessmartly ? `<span style="font-family:monospace;font-size:12px;color:#60a5fa;">${c.id_salessmartly}</span>` : (c.faz_atendimento === false ? '<span style="color:var(--muted);">—</span>' : '<span style="color:#f59e0b;font-size:11px;" title="Cadastre o ID para a extensão atribuir grupos">⚠️ faltando</span>')}</td>
           <td>${c.is_gestor ? '⚙️ Sim' : '—'}</td>
           <td>${c.ativo !== false ? '✅' : '❌'}</td>
           <td>
@@ -4554,6 +4560,7 @@ function abrirModalColab(id) {
   document.getElementById('btn-toggle-senha').textContent = '👁';
   document.getElementById('colab-data-inicio').value = '';
   document.getElementById('colab-almoco').value = '13';
+  document.getElementById('colab-id-sales').value = '';
   document.getElementById('colab-nivel-acesso').value = 'atendente';
   document.getElementById('colab-ativo').checked = true;
   document.getElementById('colab-faz-atend').checked = true;
@@ -4578,6 +4585,7 @@ function editarColab(id) {
   document.getElementById('btn-toggle-senha').textContent = '👁';
   document.getElementById('colab-data-inicio').value = c.data_inicio || '';
   document.getElementById('colab-almoco').value = c.periodo_almoco || '13';
+  document.getElementById('colab-id-sales').value = c.id_salessmartly || '';
   document.getElementById('colab-nivel-acesso').value = getNivelAcessoFromFlags(c);
   document.getElementById('colab-ativo').checked = c.ativo !== false;
   document.getElementById('colab-faz-atend').checked = c.faz_atendimento !== false;
@@ -4615,6 +4623,7 @@ async function salvarColab() {
   const senha = document.getElementById('colab-senha').value.trim();
   const dataInicio = document.getElementById('colab-data-inicio').value;
   const almoco = document.getElementById('colab-almoco').value;
+  const idSales = document.getElementById('colab-id-sales').value.trim();
   const nivelAcesso = document.getElementById('colab-nivel-acesso').value;
   const ativo = document.getElementById('colab-ativo').checked;
   const fazAtend = document.getElementById('colab-faz-atend').checked;
@@ -4632,7 +4641,8 @@ async function salvarColab() {
     faz_atendimento: fazAtend,
     faz_aulao: fazAulao,
     data_inicio: dataInicio || null,
-    periodo_almoco: almoco
+    periodo_almoco: almoco,
+    id_salessmartly: idSales || null
   };
   if (senha) body.senha = senha;
 
@@ -4660,7 +4670,7 @@ async function salvarColab() {
   if (ok) {
     fecharModal('colab-modal');
     showToast(id ? 'Colaborador atualizado!' : 'Colaborador criado!');
-    colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido,email,data_inicio,is_gestor,is_super_gestor,atendente_pleno,permissoes_gestor,ativo,faz_atendimento,faz_aulao,periodo_almoco&order=nome.asc').catch(() => colabsAdmin);
+    colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido,email,data_inicio,is_gestor,is_super_gestor,atendente_pleno,permissoes_gestor,ativo,faz_atendimento,faz_aulao,periodo_almoco,id_salessmartly&order=nome.asc').catch(() => colabsAdmin);
     await renderAdminColabs();
     colaboradores = await sbFetchSvc('v_situacao_hoje').catch(() => colaboradores);
     renderDisponibilidade();
@@ -7425,7 +7435,7 @@ function iniciarPollingNotif() {
 
 function preCarregarAdmin() {
   if (!currentColaborador?.is_gestor) return;
-  sbFetch('colaboradores?select=id,nome,apelido,email,data_inicio,is_gestor,is_super_gestor,atendente_pleno,permissoes_gestor,ativo,faz_atendimento,faz_aulao,periodo_almoco&order=nome.asc')
+  sbFetch('colaboradores?select=id,nome,apelido,email,data_inicio,is_gestor,is_super_gestor,atendente_pleno,permissoes_gestor,ativo,faz_atendimento,faz_aulao,periodo_almoco,id_salessmartly&order=nome.asc')
     .then(data => { colabsAdmin = data; })
     .catch(() => {});
 }
