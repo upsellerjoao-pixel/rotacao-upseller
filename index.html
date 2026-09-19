@@ -1071,25 +1071,12 @@
         <div class="visao-card-name" id="visao-home-nome">—</div>
         <div class="visao-card-sub" id="visao-home-sub">Responsável pela Home</div>
       </div>
-      <div class="visao-card card-aulao" style="animation-delay:80ms">
-        <span class="visao-card-icon">🎤</span>
-        <div class="visao-card-label">Aulão de Hoje</div>
-        <div class="visao-card-name" id="visao-aulao-nome">—</div>
-        <div class="visao-card-sub" id="visao-aulao-sub">Responsável pelo aulão</div>
-      </div>
       <div class="visao-card card-sabado" style="animation-delay:160ms">
         <span class="visao-card-icon">📅</span>
         <div class="visao-card-label">Próximo Sábado</div>
         <div class="visao-card-name" id="visao-sabado-nome">—</div>
         <div class="visao-card-sub" id="visao-sabado-sub">Analistas escalados</div>
         <div id="visao-sabado-extra" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px;"></div>
-      </div>
-      <div class="visao-card card-trein" style="animation-delay:240ms">
-        <span class="visao-card-icon">📋</span>
-        <div class="visao-card-label">1:1 de Hoje</div>
-        <div class="visao-card-name" id="visao-trein-nome">—</div>
-        <div class="visao-card-sub" id="visao-trein-sub">Nenhum treinamento hoje</div>
-        <div id="visao-trein-extra" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px;"></div>
       </div>
     </div>
 
@@ -1123,33 +1110,12 @@
       <div class="loading" style="grid-column:1/-1"><div class="spinner"></div> Carregando...</div>
     </div>
 
-    <button class="auloes-toggle-btn" id="auloes-toggle" onclick="toggleAuloes()">
-      🎤 Aulões da Semana
-      <span style="font-size:12px;color:var(--muted);margin-left:4px;">Responsável pelo aulão diário via Google Meet</span>
-      <span class="toggle-icon">+</span>
-    </button>
-    <div class="auloes-collapsible" id="auloes-collapsible">
-      <div id="auloes-container" style="padding-top:12px;">
-        <div class="loading"><div class="spinner"></div> Carregando...</div>
-      </div>
-    </div>
-
     <div class="section-title">Escala de Sábados</div>
     <div class="section-sub">Próximos fins de semana com analistas escalados</div>
     <div id="sabados-container" class="sabados-grid">
       <div class="loading" style="grid-column:1/-1"><div class="spinner"></div> Carregando...</div>
     </div>
 
-    <button class="auloes-toggle-btn" id="trein-toggle" onclick="toggleTreinamentos()" style="margin-top:8px;">
-      📋 Treinamentos 1:1
-      <span style="font-size:12px;color:var(--muted);margin-left:4px;">Sessões agendadas por dia da semana</span>
-      <span class="toggle-icon">+</span>
-    </button>
-    <div class="auloes-collapsible" id="trein-collapsible">
-      <div id="trein-container" style="padding-top:12px;">
-        <div class="loading"><div class="spinner"></div> Carregando...</div>
-      </div>
-    </div>
 
   </div>
 
@@ -1174,8 +1140,6 @@
       <button class="gestor-subtab" data-tab="numeros" onclick="showGestorTab('numeros')">📱 Números</button>
       <button class="gestor-subtab" data-tab="grupos" onclick="showGestorTab('grupos')">💬 Grupos</button>
       <button class="gestor-subtab" data-tab="vips" onclick="showGestorTab('vips')">⭐ VIPs</button>
-      <button class="gestor-subtab" data-tab="treinamentos" onclick="showGestorTab('treinamentos')">📚 Treinamentos</button>
-      <button class="gestor-subtab" data-tab="auloes" onclick="showGestorTab('auloes')">🎤 Aulões</button>
       <button class="gestor-subtab" data-tab="ausencias" onclick="showGestorTab('ausencias')">🚦 Ausências</button>
     </div>
 
@@ -1244,20 +1208,6 @@
     </div>
     <div id="numeros-board" class="numeros-board">
       <div class="loading" style="grid-column:1/-1"><div class="spinner"></div> Carregando...</div>
-    </div>
-
-    <!-- Treinamentos 1:1 -->
-    <div class="distribuicao-box" style="margin-top:8px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:10px;">
-        <div>
-          <h3 style="margin-bottom:4px;">📋 Treinamentos 1:1</h3>
-          <p style="margin-bottom:0;">Sessões de treinamento com usuários do sistema</p>
-        </div>
-        <button class="btn btn-primary" onclick="abrirModalTreinamento()">+ Novo Treinamento</button>
-      </div>
-      <div id="trein-gestor-list" class="trein-list">
-        <div class="loading"><div class="spinner"></div> Carregando...</div>
-      </div>
     </div>
 
     </div><!-- /gestortab-operacional -->
@@ -1438,41 +1388,6 @@
     </div>
 
     <!-- ── SUB-PÁGINA: TREINAMENTOS ── -->
-    <div id="gestortab-treinamentos" class="gestor-subpage">
-      <div class="admin-section">
-        <div class="admin-header-row">
-          <div>
-            <div class="admin-section-title">📚 Treinamentos 1:1</div>
-            <div class="admin-section-sub">Sessões de treinamento com usuários do sistema.</div>
-          </div>
-          <button class="btn btn-primary" onclick="abrirModalTreinamento()">+ Novo Treinamento</button>
-        </div>
-        <div id="trein-gestor-list2" class="trein-list">
-          <div class="loading"><div class="spinner"></div> Carregando...</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── SUB-PÁGINA: AULÕES ── -->
-    <div id="gestortab-auloes" class="gestor-subpage">
-      <div class="admin-section">
-        <div class="admin-header-row">
-          <div>
-            <div class="admin-section-title">🎤 Aulões</div>
-            <div class="admin-section-sub">Rotação diária de aulões — um por dia, segunda a sexta. Quinta = Live.</div>
-          </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="btn btn-outline" onclick="gerarAuloesAuto()">⚡ Gerar próximos 30 dias</button>
-            <button class="btn btn-primary" onclick="abrirModalAulao()">+ Adicionar dia</button>
-          </div>
-        </div>
-        <div class="info-box">
-          💡 <strong>Regra:</strong> Colaboradores com <strong>faz_aulao = true</strong> entram na fila. Rotação igualitária — ninguém faz duas vezes antes de todos fazerem uma. Novos colaboradores entram no final da fila. Quinta-feira = Live (sem responsável).
-        </div>
-        <div id="admin-auloes-list"><div class="loading"><div class="spinner"></div> Carregando...</div></div>
-      </div>
-    </div>
-
     <!-- ── SUB-PÁGINA: AUSÊNCIAS ── -->
     <div id="gestortab-ausencias" class="gestor-subpage">
       <div class="admin-section">
@@ -2210,7 +2125,7 @@ function ativarAbaVisualmente() {
     // Se for Gestor, trocar sub-aba também (só CSS)
     if (p === 'gestor') {
       const subtab = localStorage.getItem('upseller_last_gestor_tab');
-      const validSubtabs = ['operacional','colaboradores','escala-semanal','almoco','rotacao-home','sabados','numeros','grupos','vips','treinamentos','auloes','ausencias'];
+      const validSubtabs = ['operacional','colaboradores','escala-semanal','almoco','rotacao-home','sabados','numeros','grupos','vips','ausencias'];
       // Se a sub-aba salva não é permitida pro usuário, fallback pra primeira permitida
       let alvo = subtab;
       if (alvo && !podeAcessarSubAba(alvo)) {
@@ -2275,7 +2190,7 @@ function restaurarUltimaPagina() {
       // Se estava no Gestor, restaura também a sub-aba específica
       if (p === 'gestor') {
         const subtab = localStorage.getItem('upseller_last_gestor_tab');
-        const validSubtabs = ['operacional','colaboradores','escala-semanal','almoco','rotacao-home','sabados','numeros','grupos','vips','treinamentos','auloes','ausencias'];
+        const validSubtabs = ['operacional','colaboradores','escala-semanal','almoco','rotacao-home','sabados','numeros','grupos','vips','ausencias'];
         if (subtab && validSubtabs.includes(subtab)) {
           showGestorTab(subtab);
         }
@@ -3270,25 +3185,7 @@ function renderVisao(escala, auloes, sabados, vips) {
     document.getElementById('visao-home-sub').textContent = 'Nenhum responsável definido';
   }
 
-  // ── Card Aulão
-  const aulaoHoje = auloesArr.find(a => a.data === HOJE_STR);
-  const feriadoHoje = FERIADOS[HOJE_STR];
-  if (feriadoHoje) {
-    document.getElementById('visao-aulao-nome').textContent = '🏖️ Feriado';
-    document.getElementById('visao-aulao-sub').textContent = feriadoHoje;
-  } else if (aulaoHoje?.dia_semana === 'QUI') {
-    document.getElementById('visao-aulao-nome').textContent = '📺 Live';
-    const horario = aulaoHoje.horario ? aulaoHoje.horario.slice(0,5) : '15:00';
-    document.getElementById('visao-aulao-sub').textContent = `YouTube às ${horario}h`;
-  } else if (aulaoHoje?.responsavel_nome) {
-    document.getElementById('visao-aulao-nome').textContent = aulaoHoje.responsavel_apelido || aulaoHoje.responsavel_nome;
-    const horario = aulaoHoje.horario ? aulaoHoje.horario.slice(0,5) : '15:00';
-    document.getElementById('visao-aulao-sub').textContent = `Google Meet às ${horario}h`;
-  } else {
-    document.getElementById('visao-aulao-nome').textContent = '—';
-    document.getElementById('visao-aulao-sub').textContent = 'Nenhum aulão hoje';
-  }
-
+  // ── Card Aulão (removido) — bloco mantido inerte
   // ── Card Próximo Sábado
   // Agrupar sábados por data para visão geral
   const sabPorData = {};
@@ -3958,7 +3855,7 @@ async function loadAll() {
   try {
     const [escala, auloes, sabados, rotHome, homeHojeView, grupos, vips, treinamentos, numeros, numAtrib] = await Promise.all([
       sbFetchSvc('v_situacao_hoje'),
-      sbFetch('v_aulao_hoje_semana').catch(() => sbFetch('auloes?select=*,colaboradores(nome,apelido)&order=data.asc&limit=10')),
+      Promise.resolve([]), // aulões removido
       sbFetch(`rotacao_sabados?select=data,colaborador_id&data=gte.${HOJE_STR}&order=data.asc&limit=200`).catch(() => []),
       sbFetch(`v_rotacao_home_semana?order=data.asc&data=gte.${HOJE_STR}&limit=20`).catch(() => 
         sbFetchSvc(`rotacao_home?select=id,data,feriado,colaborador_id&order=data.asc&data=gte.${HOJE_STR}&limit=20`).catch(() => [])
@@ -3967,7 +3864,7 @@ async function loadAll() {
       sbFetch('v_grupos_colaborador').catch(() => []),
       // grupos_parceiros: removido — tabela não existe no banco
       sbFetch('vips?select=id,nome_conta,colaborador_id,dono_fixo_id,peso,vip_em_rotacao&order=nome_conta.asc').catch(() => []),
-      sbFetch('v_treinamentos').catch(() => []),
+      Promise.resolve([]), // treinamentos removido
       sbFetch('numeros_whatsapp?select=id,nome,numero&order=nome.asc').catch(() => []),
       sbFetch('v_numeros_hoje').catch(() => []),
     ]);
@@ -3991,13 +3888,9 @@ async function loadAll() {
     // Drag-and-drop é a única fonte de verdade pra `escalas`.
     // Ver comentário em sincronizarEscalaSemanalHoje().
 
-    renderVisao(escala, auloes, sabados, vips);
+    renderVisao(escala, [], sabados, vips);
     renderEscala(escala);
-    renderAuloes(auloes);
     renderSabados(sabados);
-    renderTreinamentos(treinamentos);
-    renderTreinamentosGestor();
-    sincTreinGestor2();
     renderRotacaoHome(rotHome);
     renderDisponibilidade();
     renderCanais();
@@ -4017,8 +3910,7 @@ async function loadAll() {
         else if (subtab === 'numeros') renderAdminNumeros();
         else if (subtab === 'grupos') renderAdminGrupos();
         else if (subtab === 'vips') renderAdminVips();
-        else if (subtab === 'auloes') renderAdminAuloes();
-        // 'treinamentos' e 'operacional' já são renderizados pelos renders globais acima
+        // 'operacional' já é renderizado pelos renders globais acima
       }
     } catch(e) { /* silencioso */ }
 
@@ -4456,7 +4348,7 @@ function showGestorTab(tab) {
   // Se o usuário não tem permissão na sub-aba solicitada, redireciona
   // para a primeira sub-aba que ele pode acessar
   if (!podeAcessarSubAba(tab)) {
-    const ordem = ['operacional','colaboradores','escala-semanal','almoco','rotacao-home','sabados','numeros','grupos','vips','treinamentos','auloes','ausencias'];
+    const ordem = ['operacional','colaboradores','escala-semanal','almoco','rotacao-home','sabados','numeros','grupos','vips','ausencias'];
     const primeira = ordem.find(t => podeAcessarSubAba(t));
     if (primeira && primeira !== tab) { showGestorTab(primeira); return; }
     // Sem nenhuma permissão: não faz nada
@@ -4479,8 +4371,6 @@ function showGestorTab(tab) {
   if (tab === 'numeros') renderAdminNumeros();
   if (tab === 'grupos') renderAdminGrupos();
   if (tab === 'vips') renderAdminVips();
-  if (tab === 'treinamentos') { renderTreinamentosGestor(); sincTreinGestor2(); }
-  if (tab === 'auloes') renderAdminAuloes();
   if (tab === 'ausencias') renderAusencias();
   // Persiste sub-aba para sobreviver ao refresh
   try { localStorage.setItem('upseller_last_gestor_tab', tab); } catch(e) {}
@@ -6834,7 +6724,7 @@ async function renderAusencias() {
   }
 
   try {
-    const rows = await sbFetch(`ausencias?select=id,colaborador_id,motivo,motivo_texto,tipo,inicio,fim&order=inicio.desc${filtroData}&limit=1000`).catch(() => []);
+    const rows = await sbFetchSvc(`ausencias?select=id,colaborador_id,motivo,motivo_texto,tipo,inicio,fim&order=inicio.desc${filtroData}&limit=1000`).catch(() => []);
     ausenciasCache = rows || [];
   } catch(e) { ausenciasCache = []; }
 
