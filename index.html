@@ -1176,6 +1176,7 @@
       <button class="gestor-subtab" data-tab="vips" onclick="showGestorTab('vips')">⭐ VIPs</button>
       <button class="gestor-subtab" data-tab="treinamentos" onclick="showGestorTab('treinamentos')">📚 Treinamentos</button>
       <button class="gestor-subtab" data-tab="auloes" onclick="showGestorTab('auloes')">🎤 Aulões</button>
+      <button class="gestor-subtab" data-tab="ausencias" onclick="showGestorTab('ausencias')">🚦 Ausências</button>
     </div>
 
     <!-- ── SUB-PÁGINA: OPERACIONAL ── -->
@@ -1320,7 +1321,7 @@
         <div class="admin-header-row">
           <div>
             <div class="admin-section-title">🍽️ Escala de Almoço</div>
-            <div class="admin-section-sub">Defina em qual canal cada colaborador fica durante o almoço (turnos 12h–13h e 13h–14h). Clique nas células para alternar.</div>
+            <div class="admin-section-sub">Defina em qual canal cada colaborador fica durante o almoço (turnos 11h45–12h45 e 12h45–13h45). Clique nas células para alternar.</div>
           </div>
         </div>
         <div class="info-box">
@@ -1472,6 +1473,37 @@
       </div>
     </div>
 
+    <!-- ── SUB-PÁGINA: AUSÊNCIAS ── -->
+    <div id="gestortab-ausencias" class="gestor-subpage">
+      <div class="admin-section">
+        <div class="admin-header-row">
+          <div>
+            <div class="admin-section-title">🚦 Registros de Ausência</div>
+            <div class="admin-section-sub">Pausas (Ocupado) e indisponibilidades registradas pela extensão, com motivo e horário.</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <select id="aus-filtro-colab" onchange="renderAusencias()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;">
+              <option value="">Todos os colaboradores</option>
+            </select>
+            <select id="aus-filtro-periodo" onchange="renderAusencias()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;">
+              <option value="hoje">Hoje</option>
+              <option value="7" selected>Últimos 7 dias</option>
+              <option value="30">Últimos 30 dias</option>
+              <option value="todos">Todo o período</option>
+            </select>
+            <select id="aus-filtro-tipo" onchange="renderAusencias()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;">
+              <option value="">Todos os tipos</option>
+              <option value="pausa">🟡 Pausas (Ocupado)</option>
+              <option value="indisponivel">🔴 Indisponibilidades</option>
+            </select>
+          </div>
+        </div>
+        <div id="aus-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px;"></div>
+        <div id="aus-grafico" style="margin-bottom:20px;"></div>
+        <div id="aus-lista"><div class="loading"><div class="spinner"></div> Carregando...</div></div>
+      </div>
+    </div>
+
   </div>
 
 </div>
@@ -1583,8 +1615,8 @@
     <div class="field">
       <label>Horário de almoço</label>
       <select id="colab-almoco" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;margin-bottom:16px;">
-        <option value="12">12h–13h</option>
-        <option value="13">13h–14h</option>
+        <option value="12">11h45–12h45</option>
+        <option value="13">12h45–13h45</option>
       </select>
     </div>
     <div class="field">
@@ -1957,6 +1989,7 @@ document.getElementById('date-display').textContent =
 // colabsAdmin: lista completa para o painel do gestor
 // ══════════════════════════════════════════════════════════════════════
 let colaboradores    = [];
+const COORDENADOR_EMAIL = 'upsellerjoao@gmail.com'; // recebe os grupos quando ninguém está ativo
 let gruposData       = [];
 let donoFixoPorNumero = {}; // numero_grupo → dono_fixo_id (para colorir chips próprios x emprestados)
 // parceirosData removida — a tabela `grupos_parceiros` nunca existiu no banco.
@@ -2177,7 +2210,7 @@ function ativarAbaVisualmente() {
     // Se for Gestor, trocar sub-aba também (só CSS)
     if (p === 'gestor') {
       const subtab = localStorage.getItem('upseller_last_gestor_tab');
-      const validSubtabs = ['operacional','colaboradores','escala-semanal','almoco','rotacao-home','sabados','numeros','grupos','vips','treinamentos','auloes'];
+      const validSubtabs = ['operacional','colaboradores','escala-semanal','almoco','rotacao-home','sabados','numeros','grupos','vips','treinamentos','auloes','ausencias'];
       // Se a sub-aba salva não é permitida pro usuário, fallback pra primeira permitida
       let alvo = subtab;
       if (alvo && !podeAcessarSubAba(alvo)) {
@@ -2242,7 +2275,7 @@ function restaurarUltimaPagina() {
       // Se estava no Gestor, restaura também a sub-aba específica
       if (p === 'gestor') {
         const subtab = localStorage.getItem('upseller_last_gestor_tab');
-        const validSubtabs = ['operacional','colaboradores','escala-semanal','almoco','rotacao-home','sabados','numeros','grupos','vips','treinamentos','auloes'];
+        const validSubtabs = ['operacional','colaboradores','escala-semanal','almoco','rotacao-home','sabados','numeros','grupos','vips','treinamentos','auloes','ausencias'];
         if (subtab && validSubtabs.includes(subtab)) {
           showGestorTab(subtab);
         }
@@ -2495,6 +2528,8 @@ async function toggleDisp(id, atual) {
       novo ? 'Você foi marcado como disponível. O gestor vai definir seu canal de atendimento de hoje (WhatsApp ou Sales).' : 'Você foi marcado como indisponível. Seus grupos foram redistribuídos.',
       novo ? 'sucesso' : 'alerta'
     );
+    // Avisar TODA a equipe (banco + alerta visual no navegador/Google)
+    notificarEquipeStatus(c ? (c.apelido || c.nome) : 'Um colaborador', novo, id);
     renderDisponibilidade();
     await redistribuirTudo();
   }
@@ -2544,6 +2579,21 @@ async function _redistribuirTudoInner() {
   const dispIds = new Set(dispWpp.map(d => d._cid));
 
   if (!dispWpp.length) {
+    // Ninguém ativo no WhatsApp → todos os grupos normais vão para o
+    // COORDENADOR (João). Assim o SalesSmartly nunca fica sem responsável.
+    const coord = colaboradores.find(c =>
+      (c.email || '').toLowerCase() === COORDENADOR_EMAIL);
+    if (coord && SB_KEY_SVC) {
+      const coordId = coord.id || coord.colaborador_id;
+      try {
+        const gs = await sbFetch('grupos_whatsapp?select=id,colaborador_id&order=numero_grupo.asc');
+        const mudar = (gs || []).filter(g => g.colaborador_id !== coordId);
+        if (mudar.length) {
+          await Promise.all(mudar.map(g =>
+            sbPatch('grupos_whatsapp', `id=eq.${g.id}`, { colaborador_id: coordId })));
+        }
+      } catch(e) { console.warn('[redistribuir] fallback João falhou', e); }
+    }
     renderCanais(); renderEscala(colaboradores);
     renderNumeros(); renderVisao(colaboradores, auloesData, sabadosData, vipsData);
     return;
@@ -3418,11 +3468,14 @@ async function renderAlmocoHojeVisao() {
 
     // Estado de cada bloco em relação ao horário atual:
     // 'antes' (ainda vai acontecer), 'agora' (em andamento), 'depois' (já encerrou)
-    const h = new Date().getHours();
+    const _now = new Date();
+    const minsAgora = _now.getHours() * 60 + _now.getMinutes();
+    // 11h45 = 705, 12h45 = 765, 13h45 = 825
     const estadoBloco = (bloco) => {
-      const ini = bloco === '12-13' ? 12 : 13;
-      if (h < ini) return 'antes';
-      if (h === ini) return 'agora';
+      const ini = bloco === '12-13' ? 705 : 765;
+      const fim = bloco === '12-13' ? 765 : 825;
+      if (minsAgora < ini) return 'antes';
+      if (minsAgora < fim) return 'agora';
       return 'depois';
     };
 
@@ -3473,7 +3526,7 @@ async function renderAlmocoHojeVisao() {
         ? `<div style="margin-top:12px;padding:8px 10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;font-size:12px;color:#f87171;">⚠️ Nenhum colaborador disponível ${passou ? 'ficou' : 'fica'} segurando o WhatsApp neste turno — ajuste a escala de almoço (Gestor → Almoço) ou ative alguém.</div>`
         : '';
       return `<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;${borda}${esmaecido}">
-        <div style="font-family:'DM Serif Display',serif;font-size:16px;color:var(--text);margin-bottom:10px;">🕐 ${bloco.replace('-', 'h–')}h${tagEstado}</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:16px;color:var(--text);margin-bottom:10px;">🕐 ${rotuloBloco(bloco)}${tagEstado}</div>
         <div style="font-size:12px;color:var(--subtle);margin-bottom:6px;">${lblAlmoco}</div>
         <div style="display:flex;flex-wrap:wrap;gap:5px;">${chips(almocando, chipAlmocoCls)}</div>
         ${linhaCobrindo}
@@ -4151,8 +4204,39 @@ async function verificarMudancas() {
     recarregar = true;
   }
 
+  // 5. Mudanças de disponibilidade de OUTROS colaboradores (ex: via extensão)
+  //    → alerta visual pra equipe que está com o painel aberto.
+  await verificarEquipeStatus();
+
   // Recarregar dados se houve qualquer mudança
   if (recarregar) setTimeout(loadAll, 600);
+}
+
+// Monitora a disponibilidade de TODA a equipe e avisa (alerta visual) quando
+// alguém muda — inclusive mudanças feitas pela extensão do SalesSmartly.
+let _snapEquipe = null;
+async function verificarEquipeStatus() {
+  try {
+    const rows = await sbFetch('colaboradores?select=id,nome,apelido,disponivel_hoje,faz_atendimento,ativo').catch(() => null);
+    if (!rows) return;
+    const mapa = {};
+    rows.forEach(c => { if (c.faz_atendimento !== false && c.ativo !== false) mapa[c.id] = (c.disponivel_hoje !== false); });
+    if (_snapEquipe) {
+      for (const id in mapa) {
+        if (id === (currentColaborador?.id)) continue; // o próprio já é tratado acima
+        if (_snapEquipe[id] !== undefined && _snapEquipe[id] !== mapa[id]) {
+          const c = rows.find(x => x.id === id);
+          const nome = c ? (c.apelido || c.nome) : 'Um colaborador';
+          const disp = mapa[id];
+          dispararAlerta(
+            disp ? `🟢 ${nome} está disponível` : `🔴 ${nome} ficou indisponível`,
+            disp ? `${nome} entrou na rotação.` : `${nome} saiu da rotação — o gestor pode reajustar os grupos.`
+          );
+        }
+      }
+    }
+    _snapEquipe = mapa;
+  } catch(e) { /* silencioso */ }
 }
 
 // Exibir banner + push notification
@@ -4372,7 +4456,7 @@ function showGestorTab(tab) {
   // Se o usuário não tem permissão na sub-aba solicitada, redireciona
   // para a primeira sub-aba que ele pode acessar
   if (!podeAcessarSubAba(tab)) {
-    const ordem = ['operacional','colaboradores','escala-semanal','almoco','rotacao-home','sabados','numeros','grupos','vips','treinamentos','auloes'];
+    const ordem = ['operacional','colaboradores','escala-semanal','almoco','rotacao-home','sabados','numeros','grupos','vips','treinamentos','auloes','ausencias'];
     const primeira = ordem.find(t => podeAcessarSubAba(t));
     if (primeira && primeira !== tab) { showGestorTab(primeira); return; }
     // Sem nenhuma permissão: não faz nada
@@ -4397,6 +4481,7 @@ function showGestorTab(tab) {
   if (tab === 'vips') renderAdminVips();
   if (tab === 'treinamentos') { renderTreinamentosGestor(); sincTreinGestor2(); }
   if (tab === 'auloes') renderAdminAuloes();
+  if (tab === 'ausencias') renderAusencias();
   // Persiste sub-aba para sobreviver ao refresh
   try { localStorage.setItem('upseller_last_gestor_tab', tab); } catch(e) {}
 }
@@ -4497,7 +4582,7 @@ async function renderAdminColabs() {
       <tbody>${colabsAdmin.map(c => {
         const novato = calcNovato(c.data_inicio);
         const dtFmt = c.data_inicio ? (() => { const d = new Date(c.data_inicio+'T12:00:00'); return `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`; })() : '—';
-        const almocoStr = (c.periodo_almoco === '12' || c.periodo_almoco === 12) ? '12h–13h' : '13h–14h';
+        const almocoStr = (c.periodo_almoco === '12' || c.periodo_almoco === 12) ? '11h45–12h45' : '12h45–13h45';
         const fazAtendStr = c.faz_atendimento === false ? '<span class="badge-inativo" style="font-size:10px;">Sem rotação</span>' : '';
         return `<tr>
           <td style="color:var(--text);font-weight:500;">${c.apelido || c.nome}</td>
@@ -5377,11 +5462,16 @@ Regra:
 // Detecta o bloco de almoço atual com base na hora do dia
 function blocoAlmocoAtual() {
   const agora = new Date();
-  const h = agora.getHours();
-  const m = agora.getMinutes();
-  if (h === 12 && m < 60) return '12-13';
-  if (h === 13 && m < 60) return '13-14';
+  const mins = agora.getHours() * 60 + agora.getMinutes();
+  // 11h45–12h45 = [705,765); 12h45–13h45 = [765,825)
+  if (mins >= 705 && mins < 765) return '12-13';
+  if (mins >= 765 && mins < 825) return '13-14';
   return null; // fora dos horários de almoço
+}
+
+// Rótulo legível de um bloco de almoço (valores internos mantidos)
+function rotuloBloco(bloco) {
+  return bloco === '12-13' ? '11h45–12h45' : '12h45–13h45';
 }
 
 // Aplica a regra de almoço a cada 5 min:
@@ -6342,7 +6432,7 @@ async function renderEscalaSemanal(skipFetch = false) {
         ${ativos.map(c => {
           const cid = c.id;
           const novatoHoje = isNovatoHoje(c.data_inicio);
-          const almoco = (c.periodo_almoco === '12' || c.periodo_almoco === 12) ? '12h–13h' : '13h–14h';
+          const almoco = (c.periodo_almoco === '12' || c.periodo_almoco === 12) ? '11h45–12h45' : '12h45–13h45';
           return `<tr>
             <td>
               ${c.apelido||c.nome}
@@ -6708,6 +6798,134 @@ function calcAulaoDia(dataStr) {
 // - Novos colaboradores entram no final da fila
 // - Datas já cadastradas são ignoradas
 // ══════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════
+// AUSÊNCIAS — registros de pausa/indisponibilidade (extensão) para o gestor
+// ══════════════════════════════════════════════════════════════════════
+let ausenciasCache = [];
+
+async function renderAusencias() {
+  const lista = document.getElementById('aus-lista');
+  const cards = document.getElementById('aus-cards');
+  const graf = document.getElementById('aus-grafico');
+  if (!lista) return;
+  lista.innerHTML = '<div class="loading"><div class="spinner"></div> Carregando...</div>';
+
+  // Preenche o filtro de colaboradores (uma vez)
+  const selColab = document.getElementById('aus-filtro-colab');
+  if (selColab && selColab.options.length <= 1) {
+    if (!colabsAdmin.length) {
+      colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido&order=nome.asc').catch(() => []);
+    }
+    colabsAdmin.forEach(c => {
+      const o = document.createElement('option');
+      o.value = c.id; o.textContent = c.apelido || c.nome;
+      selColab.appendChild(o);
+    });
+  }
+
+  // Monta o filtro de período
+  const periodo = document.getElementById('aus-filtro-periodo')?.value || '7';
+  let filtroData = '';
+  if (periodo !== 'todos') {
+    const d = new Date();
+    if (periodo === 'hoje') { d.setHours(0,0,0,0); }
+    else { d.setDate(d.getDate() - parseInt(periodo, 10)); }
+    filtroData = `&inicio=gte.${d.toISOString()}`;
+  }
+
+  try {
+    const rows = await sbFetch(`ausencias?select=id,colaborador_id,motivo,motivo_texto,tipo,inicio,fim&order=inicio.desc${filtroData}&limit=1000`).catch(() => []);
+    ausenciasCache = rows || [];
+  } catch(e) { ausenciasCache = []; }
+
+  // Aplica filtros locais (colaborador + tipo)
+  const fColab = document.getElementById('aus-filtro-colab')?.value || '';
+  const fTipo = document.getElementById('aus-filtro-tipo')?.value || '';
+  let dados = ausenciasCache;
+  if (fColab) dados = dados.filter(a => a.colaborador_id === fColab);
+  if (fTipo) dados = dados.filter(a => (a.tipo || 'indisponivel') === fTipo);
+
+  const nomeDe = id => {
+    const c = colabsAdmin.find(x => x.id === id);
+    return c ? (c.apelido || c.nome) : '?';
+  };
+  const LABEL_MOTIVO = {
+    almoco:'🍽️ Almoço', reuniao:'👥 Reunião', pausa:'☕ Pausa', banheiro:'🚻 Banheiro',
+    treino:'📋 Treinamento', anydesk:'🖥️ AnyDesk', fim:'🏁 Fim do expediente',
+    ausente:'🚶 Ausente', outro:'✏️ Outro'
+  };
+
+  // ── Cards de resumo ──
+  const total = dados.length;
+  const pausas = dados.filter(a => (a.tipo||'indisponivel') === 'pausa').length;
+  const indisp = dados.filter(a => (a.tipo||'indisponivel') === 'indisponivel').length;
+  const emAberto = dados.filter(a => !a.fim).length;
+  if (cards) {
+    const card = (v, l, cor) => `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;">
+      <div style="font-size:26px;font-weight:600;color:${cor};font-family:'DM Serif Display',serif;">${v}</div>
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:2px;">${l}</div></div>`;
+    cards.innerHTML =
+      card(total, 'Registros', 'var(--text)') +
+      card(pausas, '🟡 Pausas', '#fbbf24') +
+      card(indisp, '🔴 Indisponibilidades', '#f87171') +
+      card(emAberto, '⏳ Em aberto agora', '#60a5fa');
+  }
+
+  // ── Gráfico: ausências por colaborador (barras) ──
+  if (graf) {
+    const porColab = {};
+    dados.forEach(a => { const nm = nomeDe(a.colaborador_id); porColab[nm] = (porColab[nm]||0)+1; });
+    const entradas = Object.entries(porColab).sort((a,b)=>b[1]-a[1]).slice(0, 12);
+    const max = Math.max(1, ...entradas.map(e=>e[1]));
+    if (entradas.length) {
+      graf.innerHTML = `
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;">
+          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:14px;">📊 Ausências por colaborador</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            ${entradas.map(([nm, qt]) => `
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:110px;font-size:12px;color:var(--subtle);text-align:right;flex-shrink:0;">${nm}</div>
+                <div style="flex:1;background:var(--surface);border-radius:6px;height:22px;position:relative;overflow:hidden;">
+                  <div style="width:${(qt/max*100).toFixed(1)}%;height:100%;background:linear-gradient(90deg,#3b82f6,#06b6d4);border-radius:6px;"></div>
+                </div>
+                <div style="width:32px;font-size:12px;color:var(--text);font-weight:600;">${qt}</div>
+              </div>`).join('')}
+          </div>
+        </div>`;
+    } else { graf.innerHTML = ''; }
+  }
+
+  // ── Lista detalhada ──
+  if (!dados.length) {
+    lista.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px 0;text-align:center;">Nenhum registro de ausência no período/filtro selecionado.</div>';
+    return;
+  }
+  const fmtData = iso => { const d = new Date(iso); return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); };
+  const duracao = (ini, fim) => {
+    if (!fim) return '<span style="color:#60a5fa;">em aberto</span>';
+    const min = Math.round((new Date(fim) - new Date(ini))/60000);
+    if (min < 60) return min + ' min';
+    return Math.floor(min/60) + 'h' + String(min%60).padStart(2,'0');
+  };
+  lista.innerHTML = `<table class="admin-table">
+    <thead><tr><th>Colaborador</th><th>Tipo</th><th>Motivo</th><th>Início</th><th>Duração</th></tr></thead>
+    <tbody>${dados.map(a => {
+      const ehPausa = (a.tipo||'indisponivel') === 'pausa';
+      const tipoBadge = ehPausa
+        ? '<span style="background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3);padding:2px 8px;border-radius:6px;font-size:11px;">🟡 Pausa</span>'
+        : '<span style="background:rgba(239,68,68,0.12);color:#f87171;border:1px solid rgba(239,68,68,0.3);padding:2px 8px;border-radius:6px;font-size:11px;">🔴 Indisponível</span>';
+      const mot = (LABEL_MOTIVO[a.motivo] || a.motivo || '—') + (a.motivo === 'outro' && a.motivo_texto ? `: ${a.motivo_texto}` : '');
+      return `<tr>
+        <td style="color:var(--text);font-weight:500;">${nomeDe(a.colaborador_id)}</td>
+        <td>${tipoBadge}</td>
+        <td style="color:var(--subtle);font-size:12px;">${mot}</td>
+        <td style="color:var(--muted);font-size:12px;">${fmtData(a.inicio)}</td>
+        <td style="color:var(--muted);font-size:12px;">${duracao(a.inicio, a.fim)}</td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
+}
+
+
 async function renderAdminAuloes() {
   const el = document.getElementById('admin-auloes-list');
   el.innerHTML = '<div class="loading"><div class="spinner"></div> Carregando...</div>';
@@ -7279,6 +7497,26 @@ async function criarNotifBulk(colaboradorIds, titulo, mensagem, tipo = 'info') {
   for (const cid of colaboradorIds) {
     await criarNotif(cid, titulo, mensagem, tipo);
   }
+}
+
+// Avisa TODA a equipe quando alguém fica disponível/indisponível.
+// Grava notificação no banco para cada colaborador ativo (exceto quem mudou)
+// e dispara um alerta visual no navegador (Google) de quem está com o site aberto.
+async function notificarEquipeStatus(nome, ficouDisponivel, idExcluir) {
+  const titulo = ficouDisponivel ? `🟢 ${nome} está disponível` : `🔴 ${nome} ficou indisponível`;
+  const msg = ficouDisponivel
+    ? `${nome} entrou na rotação de atendimento.`
+    : `${nome} saiu da rotação. O gestor pode precisar reajustar os grupos.`;
+  // Alerta visual imediato (para quem está com o site aberto agora)
+  try { dispararAlerta(titulo, msg); } catch(e) {}
+  // Notificação persistida para o restante da equipe de atendimento
+  try {
+    const equipe = (colaboradores || []).filter(c => {
+      const cid = c.id || c.colaborador_id;
+      return cid && cid !== idExcluir && c.faz_atendimento !== false && c.ativo !== false;
+    }).map(c => c.id || c.colaborador_id);
+    if (equipe.length) await criarNotifBulk(equipe, titulo, msg, ficouDisponivel ? 'sucesso' : 'alerta');
+  } catch(e) { console.warn('notificarEquipeStatus:', e.message); }
 }
 
 // Buscar contagem de não lidas do colaborador logado
