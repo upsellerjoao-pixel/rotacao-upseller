@@ -6740,9 +6740,13 @@ async function renderAusencias() {
     return c ? (c.apelido || c.nome) : '?';
   };
   const LABEL_MOTIVO = {
-    almoco:'🍽️ Almoço', reuniao:'👥 Reunião', pausa:'☕ Pausa', banheiro:'🚻 Banheiro',
-    treino:'📋 Treinamento', anydesk:'🖥️ AnyDesk', fim:'🏁 Fim do expediente',
-    ausente:'🚶 Ausente', outro:'✏️ Outro'
+    // Pausa (Ocupado)
+    anydesk:'🖥️ AnyDesk', banheiro:'🚻 Banheiro', chamado:'🎫 Chamado', pausa:'☕ Pausa / Café',
+    // Indisponível
+    treino:'🎓 Treinamento / Capacitação', almoco:'🍽️ Almoço', subtarefa:'📌 Subtarefa', fim:'🏁 Fim de expediente',
+    // legado (registros antigos)
+    reuniao:'👥 Reunião', ausente:'🚶 Ausente',
+    outro:'✏️ Outro'
   };
 
   // ── Cards de resumo ──
@@ -6804,7 +6808,7 @@ async function renderAusencias() {
       const tipoBadge = ehPausa
         ? '<span style="background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3);padding:2px 8px;border-radius:6px;font-size:11px;">🟡 Pausa</span>'
         : '<span style="background:rgba(239,68,68,0.12);color:#f87171;border:1px solid rgba(239,68,68,0.3);padding:2px 8px;border-radius:6px;font-size:11px;">🔴 Indisponível</span>';
-      const mot = (LABEL_MOTIVO[a.motivo] || a.motivo || '—') + (a.motivo === 'outro' && a.motivo_texto ? `: ${a.motivo_texto}` : '');
+      const mot = (LABEL_MOTIVO[a.motivo] || a.motivo || '—') + (a.motivo_texto ? `: ${a.motivo_texto}` : '');
       return `<tr>
         <td style="color:var(--text);font-weight:500;">${nomeDe(a.colaborador_id)}</td>
         <td>${tipoBadge}</td>
