@@ -13,15 +13,33 @@
     --surface: #111827;
     --card: #1a2235;
     --border: #1f2d45;
-    --accent: #3b82f6;
+    --accent: #2563eb;      /* azul Upseller */
     --accent2: #06b6d4;
-    --green: #10b981;
-    --orange: #f59e0b;
-    --red: #ef4444;
+    --green: #22c55e;       /* online (igual SalesSmartly) */
+    --orange: #f59e0b;      /* ocupado */
+    --red: #ef4444;         /* indisponível */
     --purple: #8b5cf6;
     --text: #f1f5f9;
     --muted: #64748b;
     --subtle: #94a3b8;
+    --sombra: rgba(0,0,0,0.3);
+  }
+  /* ── TEMA CLARO (estilo Upseller ERP) ── */
+  :root[data-theme="light"] {
+    --bg: #f4f7fb;
+    --surface: #eef2f8;
+    --card: #ffffff;
+    --border: #e2e8f0;
+    --accent: #2563eb;
+    --accent2: #0891b2;
+    --green: #16a34a;
+    --orange: #d97706;
+    --red: #dc2626;
+    --purple: #7c3aed;
+    --text: #0f172a;
+    --muted: #94a3b8;
+    --subtle: #475569;
+    --sombra: rgba(15,23,42,0.08);
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -30,8 +48,14 @@
     color: var(--text);
     min-height: 100vh;
     background-image: 
-      radial-gradient(ellipse at 20% 20%, rgba(59,130,246,0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 20% 20%, rgba(37,99,235,0.08) 0%, transparent 50%),
       radial-gradient(ellipse at 80% 80%, rgba(6,182,212,0.06) 0%, transparent 50%);
+    transition: background 0.3s, color 0.3s;
+  }
+  :root[data-theme="light"] body {
+    background-image:
+      radial-gradient(ellipse at 20% 0%, rgba(37,99,235,0.06) 0%, transparent 55%),
+      radial-gradient(ellipse at 100% 100%, rgba(8,145,178,0.05) 0%, transparent 55%);
   }
 
   header {
@@ -1037,6 +1061,7 @@
       <button class="tab" onclick="showPage('dashboard')">Dashboard</button>
       <button class="tab tab-gestor-only" id="tab-gestor" onclick="showPage('gestor')">⚙️ Gestor</button>
     </div>
+    <button id="btn-tema" onclick="alternarTema()" title="Alternar tema claro/escuro" style="background:none;border:1px solid var(--border);border-radius:10px;color:var(--subtle);cursor:pointer;padding:6px 10px;font-size:16px;transition:all 0.2s;margin-right:4px;">🌙</button>
     <div style="position:relative;display:inline-flex;">
       <button id="btn-notif" onclick="togglePainelNotif()" title="Notificações" style="background:none;border:1px solid var(--border);border-radius:10px;color:var(--subtle);cursor:pointer;padding:6px 10px;font-size:16px;position:relative;transition:all 0.2s;">
         🔔
@@ -1393,8 +1418,8 @@
       <div class="admin-section">
         <div class="admin-header-row">
           <div>
-            <div class="admin-section-title">🚦 Registros de Ausência</div>
-            <div class="admin-section-sub">Pausas (Ocupado) e indisponibilidades registradas pela extensão, com motivo e horário.</div>
+            <div class="admin-section-title">🚦 Linha do Tempo de Status</div>
+            <div class="admin-section-sub">Tempo conectado, ocupado e indisponível de cada colaborador, com motivos e duração.</div>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
             <select id="aus-filtro-colab" onchange="renderAusencias()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;">
@@ -1407,9 +1432,10 @@
               <option value="todos">Todo o período</option>
             </select>
             <select id="aus-filtro-tipo" onchange="renderAusencias()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;">
-              <option value="">Todos os tipos</option>
-              <option value="pausa">🟡 Pausas (Ocupado)</option>
-              <option value="indisponivel">🔴 Indisponibilidades</option>
+              <option value="">Todos os status</option>
+              <option value="online">🟢 Online</option>
+              <option value="ocupado">🟡 Ocupado</option>
+              <option value="indisponivel">🔴 Indisponível</option>
             </select>
           </div>
         </div>
@@ -1783,6 +1809,26 @@ const hdrs = (write=false) => ({
 // sbDelete: DELETE com service role key — remove registros
 // hdrs(svc): monta os headers HTTP com a key correta
 // ══════════════════════════════════════════════════════════════════════
+// ── TEMA CLARO/ESCURO ───────────────────────────────────
+function aplicarTemaSalvo() {
+  try {
+    const t = localStorage.getItem('upseller_tema') || 'dark';
+    document.documentElement.setAttribute('data-theme', t);
+    const btn = document.getElementById('btn-tema');
+    if (btn) btn.textContent = t === 'light' ? '☀️' : '🌙';
+  } catch(e) {}
+}
+function alternarTema() {
+  const atual = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  const novo = atual === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', novo);
+  try { localStorage.setItem('upseller_tema', novo); } catch(e) {}
+  const btn = document.getElementById('btn-tema');
+  if (btn) btn.textContent = novo === 'light' ? '☀️' : '🌙';
+}
+// aplica assim que o script carrega
+aplicarTemaSalvo();
+
 async function sbFetch(path) {
   const r = await fetch(`${SB_URL}/rest/v1/${path}`, { headers: hdrs(false) });
   if (!r.ok) throw new Error(`${r.status}`);
@@ -6691,132 +6737,153 @@ function calcAulaoDia(dataStr) {
 // ══════════════════════════════════════════════════════════════════════
 // AUSÊNCIAS — registros de pausa/indisponibilidade (extensão) para o gestor
 // ══════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════
+// AUSÊNCIAS / STATUS — linha do tempo (online / ocupado / indisponível)
+// Lê de historico_status (preenchida pela extensão). Calcula horas por
+// status, mostra quando cada um conectou e a duração de cada período.
+// ══════════════════════════════════════════════════════════════════════
 let ausenciasCache = [];
+
+const LABEL_MOTIVO_AUS = {
+  anydesk:'🖥️ AnyDesk', banheiro:'🚻 Banheiro', chamado:'🎫 Chamado', pausa:'☕ Pausa / Café',
+  treino:'🎓 Treinamento / Capacitação', almoco:'🍽️ Almoço', subtarefa:'📌 Subtarefa', fim:'🏁 Fim de expediente',
+  reuniao:'👥 Reunião', ausente:'🚶 Ausente', outro:'✏️ Outro'
+};
+
+function fmtHoras(ms) {
+  if (!ms || ms < 0) ms = 0;
+  const min = Math.round(ms / 60000);
+  const h = Math.floor(min / 60), m = min % 60;
+  if (h === 0) return m + 'min';
+  return h + 'h' + String(m).padStart(2,'0');
+}
 
 async function renderAusencias() {
   const lista = document.getElementById('aus-lista');
   const cards = document.getElementById('aus-cards');
-  const graf = document.getElementById('aus-grafico');
+  const graf  = document.getElementById('aus-grafico');
   if (!lista) return;
   lista.innerHTML = '<div class="loading"><div class="spinner"></div> Carregando...</div>';
 
-  // Preenche o filtro de colaboradores (uma vez)
-  const selColab = document.getElementById('aus-filtro-colab');
-  if (selColab && selColab.options.length <= 1) {
-    if (!colabsAdmin.length) {
-      colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido&order=nome.asc').catch(() => []);
-    }
-    colabsAdmin.forEach(c => {
-      const o = document.createElement('option');
-      o.value = c.id; o.textContent = c.apelido || c.nome;
-      selColab.appendChild(o);
-    });
-  }
-
-  // Monta o filtro de período
-  const periodo = document.getElementById('aus-filtro-periodo')?.value || '7';
-  let filtroData = '';
-  if (periodo !== 'todos') {
-    const d = new Date();
-    if (periodo === 'hoje') { d.setHours(0,0,0,0); }
-    else { d.setDate(d.getDate() - parseInt(periodo, 10)); }
-    filtroData = `&inicio=gte.${d.toISOString()}`;
-  }
-
   try {
-    const rows = await sbFetchSvc(`ausencias?select=id,colaborador_id,motivo,motivo_texto,tipo,inicio,fim&order=inicio.desc${filtroData}&limit=1000`).catch(() => []);
+    // Filtro de colaboradores (preenche uma vez)
+    const selColab = document.getElementById('aus-filtro-colab');
+    if (selColab && selColab.options.length <= 1) {
+      if (!colabsAdmin.length) {
+        colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido&order=nome.asc').catch(() => []);
+      }
+      colabsAdmin.forEach(c => {
+        const o = document.createElement('option');
+        o.value = c.id; o.textContent = c.apelido || c.nome;
+        selColab.appendChild(o);
+      });
+    }
+
+    // Filtro de período
+    const periodo = document.getElementById('aus-filtro-periodo')?.value || '7';
+    let filtroData = '';
+    if (periodo !== 'todos') {
+      const d = new Date();
+      if (periodo === 'hoje') d.setHours(0,0,0,0);
+      else d.setDate(d.getDate() - parseInt(periodo, 10));
+      filtroData = `&inicio=gte.${d.toISOString()}`;
+    }
+
+    // Lê a linha do tempo de status
+    const rows = await sbFetchSvc(`historico_status?select=id,colaborador_id,status,motivo,motivo_texto,inicio,fim&order=inicio.desc${filtroData}&limit=3000`).catch(() => []);
     ausenciasCache = rows || [];
-  } catch(e) { ausenciasCache = []; }
 
-  // Aplica filtros locais (colaborador + tipo)
-  const fColab = document.getElementById('aus-filtro-colab')?.value || '';
-  const fTipo = document.getElementById('aus-filtro-tipo')?.value || '';
-  let dados = ausenciasCache;
-  if (fColab) dados = dados.filter(a => a.colaborador_id === fColab);
-  if (fTipo) dados = dados.filter(a => (a.tipo || 'indisponivel') === fTipo);
+    // Filtros locais (colaborador + tipo/status)
+    const fColab = document.getElementById('aus-filtro-colab')?.value || '';
+    const fTipo  = document.getElementById('aus-filtro-tipo')?.value || '';
+    let dados = ausenciasCache;
+    if (fColab) dados = dados.filter(a => a.colaborador_id === fColab);
+    if (fTipo)  dados = dados.filter(a => (a.status || 'indisponivel') === fTipo);
 
-  const nomeDe = id => {
-    const c = colabsAdmin.find(x => x.id === id);
-    return c ? (c.apelido || c.nome) : '?';
-  };
-  const LABEL_MOTIVO = {
-    // Pausa (Ocupado)
-    anydesk:'🖥️ AnyDesk', banheiro:'🚻 Banheiro', chamado:'🎫 Chamado', pausa:'☕ Pausa / Café',
-    // Indisponível
-    treino:'🎓 Treinamento / Capacitação', almoco:'🍽️ Almoço', subtarefa:'📌 Subtarefa', fim:'🏁 Fim de expediente',
-    // legado (registros antigos)
-    reuniao:'👥 Reunião', ausente:'🚶 Ausente',
-    outro:'✏️ Outro'
-  };
+    const nomeDe = id => { const c = colabsAdmin.find(x => x.id === id); return c ? (c.apelido || c.nome) : '?'; };
+    const agora = Date.now();
+    const durMs = a => ((a.fim ? new Date(a.fim).getTime() : agora) - new Date(a.inicio).getTime());
 
-  // ── Cards de resumo ──
-  const total = dados.length;
-  const pausas = dados.filter(a => (a.tipo||'indisponivel') === 'pausa').length;
-  const indisp = dados.filter(a => (a.tipo||'indisponivel') === 'indisponivel').length;
-  const emAberto = dados.filter(a => !a.fim).length;
-  if (cards) {
-    const card = (v, l, cor) => `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;">
-      <div style="font-size:26px;font-weight:600;color:${cor};font-family:'DM Serif Display',serif;">${v}</div>
-      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:2px;">${l}</div></div>`;
-    cards.innerHTML =
-      card(total, 'Registros', 'var(--text)') +
-      card(pausas, '🟡 Pausas', '#fbbf24') +
-      card(indisp, '🔴 Indisponibilidades', '#f87171') +
-      card(emAberto, '⏳ Em aberto agora', '#60a5fa');
-  }
+    // ── Totais de horas por status ──
+    let hOnline = 0, hOcupado = 0, hIndisp = 0, emAberto = 0;
+    dados.forEach(a => {
+      const d = durMs(a);
+      const st = a.status || 'indisponivel';
+      if (st === 'online') hOnline += d;
+      else if (st === 'ocupado') hOcupado += d;
+      else hIndisp += d;
+      if (!a.fim) emAberto++;
+    });
 
-  // ── Gráfico: ausências por colaborador (barras) ──
-  if (graf) {
-    const porColab = {};
-    dados.forEach(a => { const nm = nomeDe(a.colaborador_id); porColab[nm] = (porColab[nm]||0)+1; });
-    const entradas = Object.entries(porColab).sort((a,b)=>b[1]-a[1]).slice(0, 12);
-    const max = Math.max(1, ...entradas.map(e=>e[1]));
-    if (entradas.length) {
-      graf.innerHTML = `
+    if (cards) {
+      const card = (v, l, cor) => `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;">
+        <div style="font-size:24px;font-weight:600;color:${cor};font-family:'DM Serif Display',serif;">${v}</div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:2px;">${l}</div></div>`;
+      cards.innerHTML =
+        card(fmtHoras(hOnline),  '🟢 Tempo conectado', 'var(--green)') +
+        card(fmtHoras(hOcupado), '🟡 Tempo ocupado',   'var(--orange)') +
+        card(fmtHoras(hIndisp),  '🔴 Tempo indisponível','var(--red)') +
+        card(dados.length,       'Registros',          'var(--text)') +
+        card(emAberto,           '⏳ Em aberto agora',  'var(--accent)');
+    }
+
+    // ── Gráfico: horas ocupado + indisponível por colaborador ──
+    if (graf) {
+      const porColab = {};
+      dados.forEach(a => {
+        const st = a.status || 'indisponivel';
+        if (st === 'online') return; // o gráfico foca em ausência (ocupado+indisp)
+        const nm = nomeDe(a.colaborador_id);
+        porColab[nm] = (porColab[nm] || 0) + durMs(a);
+      });
+      const entradas = Object.entries(porColab).sort((a,b)=>b[1]-a[1]).slice(0, 12);
+      const max = Math.max(1, ...entradas.map(e=>e[1]));
+      graf.innerHTML = entradas.length ? `
         <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;">
-          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:14px;">📊 Ausências por colaborador</div>
+          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:14px;">📊 Tempo fora da fila por colaborador (ocupado + indisponível)</div>
           <div style="display:flex;flex-direction:column;gap:8px;">
-            ${entradas.map(([nm, qt]) => `
+            ${entradas.map(([nm, ms]) => `
               <div style="display:flex;align-items:center;gap:10px;">
-                <div style="width:110px;font-size:12px;color:var(--subtle);text-align:right;flex-shrink:0;">${nm}</div>
+                <div style="width:120px;font-size:12px;color:var(--subtle);text-align:right;flex-shrink:0;">${nm}</div>
                 <div style="flex:1;background:var(--surface);border-radius:6px;height:22px;position:relative;overflow:hidden;">
-                  <div style="width:${(qt/max*100).toFixed(1)}%;height:100%;background:linear-gradient(90deg,#3b82f6,#06b6d4);border-radius:6px;"></div>
+                  <div style="width:${(ms/max*100).toFixed(1)}%;height:100%;background:linear-gradient(90deg,var(--orange),var(--red));border-radius:6px;"></div>
                 </div>
-                <div style="width:32px;font-size:12px;color:var(--text);font-weight:600;">${qt}</div>
+                <div style="width:60px;font-size:12px;color:var(--text);font-weight:600;text-align:right;">${fmtHoras(ms)}</div>
               </div>`).join('')}
           </div>
-        </div>`;
-    } else { graf.innerHTML = ''; }
-  }
+        </div>` : '';
+    }
 
-  // ── Lista detalhada ──
-  if (!dados.length) {
-    lista.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px 0;text-align:center;">Nenhum registro de ausência no período/filtro selecionado.</div>';
-    return;
+    // ── Lista detalhada ──
+    if (!dados.length) {
+      lista.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px 0;text-align:center;">Nenhum registro no período/filtro selecionado.<br><span style="font-size:11px;">Os registros são criados pela extensão quando o colaborador muda de status.</span></div>';
+      return;
+    }
+    const fmtDH = iso => { const d = new Date(iso); return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); };
+    const badgeStatus = st => {
+      if (st === 'online') return '<span style="background:rgba(34,197,94,0.15);color:var(--green);border:1px solid rgba(34,197,94,0.3);padding:2px 8px;border-radius:6px;font-size:11px;">🟢 Online</span>';
+      if (st === 'ocupado') return '<span style="background:rgba(245,158,11,0.15);color:var(--orange);border:1px solid rgba(245,158,11,0.3);padding:2px 8px;border-radius:6px;font-size:11px;">🟡 Ocupado</span>';
+      return '<span style="background:rgba(239,68,68,0.12);color:var(--red);border:1px solid rgba(239,68,68,0.3);padding:2px 8px;border-radius:6px;font-size:11px;">🔴 Indisponível</span>';
+    };
+    lista.innerHTML = `<table class="admin-table">
+      <thead><tr><th>Colaborador</th><th>Status</th><th>Motivo</th><th>Início</th><th>Fim</th><th>Duração</th></tr></thead>
+      <tbody>${dados.map(a => {
+        const st = a.status || 'indisponivel';
+        const mot = st === 'online' ? '—' : ((LABEL_MOTIVO_AUS[a.motivo] || a.motivo || '—') + (a.motivo_texto ? `: ${a.motivo_texto}` : ''));
+        const fim = a.fim ? fmtDH(a.fim) : '<span style="color:var(--accent);">em aberto</span>';
+        return `<tr>
+          <td style="color:var(--text);font-weight:500;">${nomeDe(a.colaborador_id)}</td>
+          <td>${badgeStatus(st)}</td>
+          <td style="color:var(--subtle);font-size:12px;">${mot}</td>
+          <td style="color:var(--muted);font-size:12px;">${fmtDH(a.inicio)}</td>
+          <td style="color:var(--muted);font-size:12px;">${fim}</td>
+          <td style="color:var(--text);font-size:12px;font-weight:500;">${fmtHoras(durMs(a))}</td>
+        </tr>`;
+      }).join('')}</tbody></table>`;
+  } catch(e) {
+    // Nunca deixa a tela presa em "Carregando"
+    lista.innerHTML = `<div class="error-msg">Erro ao carregar: ${e.message}</div>`;
   }
-  const fmtData = iso => { const d = new Date(iso); return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); };
-  const duracao = (ini, fim) => {
-    if (!fim) return '<span style="color:#60a5fa;">em aberto</span>';
-    const min = Math.round((new Date(fim) - new Date(ini))/60000);
-    if (min < 60) return min + ' min';
-    return Math.floor(min/60) + 'h' + String(min%60).padStart(2,'0');
-  };
-  lista.innerHTML = `<table class="admin-table">
-    <thead><tr><th>Colaborador</th><th>Tipo</th><th>Motivo</th><th>Início</th><th>Duração</th></tr></thead>
-    <tbody>${dados.map(a => {
-      const ehPausa = (a.tipo||'indisponivel') === 'pausa';
-      const tipoBadge = ehPausa
-        ? '<span style="background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3);padding:2px 8px;border-radius:6px;font-size:11px;">🟡 Pausa</span>'
-        : '<span style="background:rgba(239,68,68,0.12);color:#f87171;border:1px solid rgba(239,68,68,0.3);padding:2px 8px;border-radius:6px;font-size:11px;">🔴 Indisponível</span>';
-      const mot = (LABEL_MOTIVO[a.motivo] || a.motivo || '—') + (a.motivo_texto ? `: ${a.motivo_texto}` : '');
-      return `<tr>
-        <td style="color:var(--text);font-weight:500;">${nomeDe(a.colaborador_id)}</td>
-        <td>${tipoBadge}</td>
-        <td style="color:var(--subtle);font-size:12px;">${mot}</td>
-        <td style="color:var(--muted);font-size:12px;">${fmtData(a.inicio)}</td>
-        <td style="color:var(--muted);font-size:12px;">${duracao(a.inicio, a.fim)}</td>
-      </tr>`;
-    }).join('')}</tbody></table>`;
 }
 
 
