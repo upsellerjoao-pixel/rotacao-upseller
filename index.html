@@ -4761,10 +4761,25 @@ async function inserirNovoColabNaRotacaoSabado(novoColabResp, body) {
 }
 
 async function removerColab(id, nome) {
-  if (!confirm(`Remover "${nome}"? Esta ação não pode ser desfeita.`)) return;
-  const ok = await sbDelete('colaboradores', `id=eq.${id}`);
-  if (ok) { showToast('Colaborador removido.'); await renderAdminColabs(); }
-  else showToast('Erro ao remover.', 'error');
+  if (!confirm(`Remover "${nome}"?\n\nOs grupos e VIPs dele serão desvinculados (continuam existindo, sem dono) e os dados pessoais dele (escalas, ausências, histórico) serão apagados.\n\nEsta ação não pode ser desfeita.`)) return;
+  if (!SB_KEY_SVC) { alert('⚠️ Service Role Key não configurada!'); return; }
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/colaboradores?id=eq.${id}`, {
+      method: 'DELETE',
+      headers: { 'apikey': SB_KEY_SVC, 'Authorization': `Bearer ${SB_KEY_SVC}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }
+    });
+    if (r.ok) { showToast('Colaborador removido.'); await renderAdminColabs(); return; }
+    const t = await r.text().catch(() => '');
+    console.error('remover colaborador', r.status, t);
+    let msg;
+    if (/foreign key|violates|conflict/i.test(t) || r.status === 409) {
+      msg = 'Ainda há registros ligados a este colaborador. Rode o SQL "SQL_excluir_colaboradores.sql" uma vez no Supabase e tente de novo.';
+    } else {
+      let det = t; try { det = JSON.parse(t).message || t; } catch (e) {}
+      msg = 'Erro ao remover' + (det ? ': ' + String(det).slice(0, 160) : '.');
+    }
+    showToast(msg, 'error');
+  } catch (e) { showToast('Erro: ' + e.message, 'error'); }
 }
 
 // ── NÚMEROS ──────────────────────────────────────────────
