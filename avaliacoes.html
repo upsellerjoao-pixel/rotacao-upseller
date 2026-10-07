@@ -167,7 +167,9 @@ async function api(method, path, body, useSvc){
   if(!res.ok){ console.error(method, path, res.status, txt); const e=new Error((json&&json.message)||('HTTP '+res.status)); e.status=res.status; e.body=txt; throw e; }
   return json;
 }
-const get   = (p)=>api('GET',p,null,false);
+// Leitura usa a chave de serviço (igual às gravações) para não depender de RLS/grants
+// das tabelas novas — assim o app sempre enxerga o que acabou de gravar.
+const get   = (p)=>api('GET',p,null,true);
 const post  = (p,b)=>api('POST',p,b,true);
 const patch = (p,b)=>api('PATCH',p,b,true);
 const del   = (p)=>api('DELETE',p,null,true);
@@ -617,11 +619,19 @@ function renderPreviewImport(){
 async function confirmarImport(){
   const ok=_importRows.filter(r=>!r._erros.length); if(!ok.length) return;
   try{
-    // garante categorias
-    let cats=await get('aval_categorias?select=*');
+    // garante categorias (idempotente: se já existir, reaproveita em vez de duplicar)
+    let cats=await get('aval_categorias?select=id,nome');
     const nomeToId={}; cats.forEach(c=>nomeToId[c.nome.toLowerCase()]=c.id);
-    const novas=[...new Set(ok.map(r=>r.categoria).filter(n=>n&&!nomeToId[n.toLowerCase()]))];
-    for(const n of novas){ const c=await post('aval_categorias',{nome:n}); nomeToId[n.toLowerCase()]=c[0].id; }
+    const nomesUsados=[...new Set(ok.map(r=>r.categoria).filter(Boolean))];
+    for(const nome of nomesUsados){
+      const key=nome.toLowerCase();
+      if(nomeToId[key]) continue;
+      try{ const c=await post('aval_categorias',{nome}); nomeToId[key]=c[0].id; }
+      catch(e){ // provavelmente já existe (corrida/ import anterior) → busca o id
+        const ex=await get(`aval_categorias?select=id,nome&nome=ilike.${encodeURIComponent(nome)}&limit=1`);
+        if(ex && ex.length) nomeToId[key]=ex[0].id; else throw e;
+      }
+    }
     const payload=ok.map(r=>({ enunciado:r.enunciado, tipo:r.tipo, categoria_id: r.categoria?nomeToId[r.categoria.toLowerCase()]:null,
       alternativas: r.tipo==='objetiva'?r.alternativas:null, resposta_correta:r.resposta_correta||null,
       peso:r.peso, explicacao:r.explicacao||null, criado_por:U.id }));
