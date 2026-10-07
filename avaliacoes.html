@@ -899,10 +899,8 @@ async function corrigir(tentId){
             return `<div class="opt ${cls}"><div class="k">${k}</div><div>${esc(alts[k])}</div></div>`;
           }).join('');
           return `<div class="q"><div class="enun">${i+1}. ${esc(q.enunciado)} <span class="badge ${r.correta?'b-green':'b-red'}" style="float:right">${r.correta?'Acertou':'Errou'} · ${r.pontos||0}/${r.pontos_max}pt</span></div>${opts}
-            <div class="muted" style="font-size:12px;margin-top:6px">Correção automática. Para sobrescrever:
-            <select data-corr="${r.id}" data-max="${r.pontos_max}" data-tipo="obj" onchange="recalcCorr()">
-              <option value="auto" selected>Automático (${r.correta?'certo':'errado'})</option>
-              <option value="full">Dar pontos cheios</option><option value="zero">Zerar</option></select></div></div>`;
+            <div class="muted" style="font-size:12px;margin-top:6px">Correção automática: <b>${r.correta?'acertou':'errou'}</b>. Ajuste os pontos manualmente se quiser:</div>
+            <div class="row" style="max-width:200px;margin-top:4px"><input type="number" min="0" max="${r.pontos_max}" step="0.5" data-corr="${r.id}" data-max="${r.pontos_max}" data-tipo="obj" value="${r.pontos!=null?r.pontos:(r.correta?r.pontos_max:0)}" oninput="recalcCorr()"></div></div>`;
         } else {
           return `<div class="q"><div class="enun">${i+1}. ${esc(q.enunciado)} <span class="muted" style="font-weight:400">(${r.pontos_max}pt)</span></div>
             <div class="muted" style="font-size:12px">Resposta do colaborador:</div>
@@ -918,14 +916,10 @@ async function corrigir(tentId){
     recalcCorr();
   }catch(e){ v.innerHTML=`<div class="card" style="color:var(--red)">Erro: ${esc(e.message)}</div>`; }
 }
-function pontosLinha(sel){
-  const max=parseFloat(sel.dataset.max)||0;
-  if(sel.dataset.tipo==='obj'){
-    const r=_corr.resp.find(x=>x.id===sel.dataset.corr);
-    if(sel.value==='full') return max; if(sel.value==='zero') return 0; return r.correta?max:0;
-  } else {
-    let p=parseFloat(sel.value); if(isNaN(p))p=0; return Math.max(0,Math.min(max,p));
-  }
+function pontosLinha(el){
+  const max=parseFloat(el.dataset.max)||0;
+  let p=parseFloat(el.value); if(isNaN(p)) p=0;
+  return Math.max(0, Math.min(max, p));
 }
 function recalcCorr(){
   let nota=0,max=0;
@@ -960,7 +954,7 @@ async function salvarCorrecao(publicar){
 // ══════════════════════════════════════════════════════════
 // MÉTRICAS (gestor / super)
 // ══════════════════════════════════════════════════════════
-let _metr=null;
+let _metr=null, _metrData=null;
 async function viewMetricas(){
   const v=document.getElementById('view');
   try{
@@ -974,7 +968,7 @@ async function viewMetricas(){
     ]);
     const am={}; avs.forEach(a=>am[a.id]=a.titulo); const cm={}; colabs.forEach(c=>cm[c.id]=c.apelido||c.nome);
     const qids=[...new Set(resp.map(r=>r.questao_id))];
-    const qs=qids.length? await get(`aval_questoes?id=in.(${qids.join(',')})&select=id,enunciado,categoria_id`):[];
+    const qs=qids.length? await get(`aval_questoes?id=in.(${qids.join(',')})&select=id,enunciado,categoria_id,competencia`):[];
     const qm={}; qs.forEach(q=>qm[q.id]=q);
     const catIds=[...new Set(qs.map(q=>q.categoria_id).filter(Boolean))];
     const cats=catIds.length? await get(`aval_categorias?id=in.(${catIds.join(',')})&select=id,nome`):[];
@@ -987,8 +981,9 @@ async function viewMetricas(){
         <div><label>Colaborador</label><select id="mt-colab"><option value="">Todos</option>${colabs.map(c=>`<option value="${c.id}">${esc(c.apelido||c.nome)}</option>`).join('')}</select></div>
         <div><label>Avaliação</label><select id="mt-aval"><option value="">Todas</option>${avs.map(a=>`<option value="${a.id}">${esc(a.titulo)}</option>`).join('')}</select></div>
       </div>
-      <div style="margin-top:10px"><button class="btn primary sm" onclick="renderMetricas()">Aplicar</button>
-      <button class="btn ghost sm" onclick="limparFiltrosMetr()">Limpar</button></div></div>
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary sm" onclick="renderMetricas()">Aplicar</button>
+      <button class="btn ghost sm" onclick="limparFiltrosMetr()">Limpar</button>
+      <button class="btn green sm" onclick="exportarRelatorio()">⬇️ Exportar relatório (xlsx)</button></div></div>
       <div id="metr-body"></div>`;
     renderMetricas();
   }catch(e){ v.innerHTML=`<div class="card" style="color:var(--red)">Erro: ${esc(e.message)}</div>`; }
@@ -1024,6 +1019,8 @@ function renderMetricas(){
   const dificeis=Object.values(porQ).map(x=>({enun:x.enun,taxa:Math.round(x.ok/x.n*100),n:x.n})).sort((a,b)=>a.taxa-b.taxa).slice(0,8);
   const assuntos=Object.keys(porAssunto).map(k=>({nome:k,taxa:Math.round(porAssunto[k].ok/porAssunto[k].n*100),n:porAssunto[k].n})).sort((a,b)=>a.taxa-b.taxa);
   const mediaGeral=Math.round(tents.reduce((s,t)=>s+(t.percentual||0),0)/tents.length);
+  // guarda o conjunto filtrado para exportação
+  _metrData={ tents, am:_metr.am, cm:_metr.cm, qm:_metr.qm, catNome:_metr.catNome, porQ, assuntos };
   const bars=(arr,label,val,color)=>arr.map(x=>`<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
     <span>${esc(label(x))}</span><span class="muted">${val(x)}</span></div>
     <div class="bar"><span style="width:${x.taxa!=null?x.taxa:x.media}%;background:${color?color(x):'var(--accent)'}"></span></div></div>`).join('');
@@ -1042,6 +1039,36 @@ function renderMetricas(){
         return `<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span>${esc(am[id]||'—')}</span><span class="muted">${m}% (${arr.length})</span></div><div class="bar"><span style="width:${m}%"></span></div></div>`;
       }).join('')
     }</div></div>`;
+}
+
+// ── Exportar relatório gerencial (.xlsx) respeitando os filtros atuais ──
+function exportarRelatorio(){
+  if(!_metrData || !_metrData.tents.length){ toast('Nada para exportar com os filtros atuais.','err'); return; }
+  const {tents,am,cm,qm,catNome,porQ}=_metrData;
+  const sit=t=> t.aprovado==null?'—':(t.aprovado?'Aprovado':'Reprovado');
+  // 1) Notas de todos os colaboradores
+  const notasHead=['Colaborador','Avaliação','Nota','Nota máx','Percentual','Situação','Data correção'];
+  const notasRows=tents.slice().sort((a,b)=>(cm[a.colaborador_id]||'').localeCompare(cm[b.colaborador_id]||''))
+    .map(t=>[ cm[t.colaborador_id]||'—', am[t.avaliacao_id]||'—', t.nota??'', t.nota_max??'', (t.percentual??'')+'%', sit(t),
+      t.corrigido_em? new Date(t.corrigido_em).toLocaleString('pt-BR'):'' ]);
+  // 2) Questões que MAIS DA METADE errou (taxa de acerto < 50%)
+  const qStats=Object.keys(porQ).map(qid=>{ const x=porQ[qid]; const q=qm[qid]||{};
+    return { enun:x.enun||q.enunciado||'', cat:catNome[q.categoria_id]||'Sem categoria', comp:fmtComp(q.competencia),
+      taxa:Math.round(x.ok/x.n*100), erraram:x.n-x.ok, responderam:x.n }; });
+  const criticas=qStats.filter(x=>x.taxa<50).sort((a,b)=>a.taxa-b.taxa);
+  const critHead=['Questão','Categoria','Competência','% acerto','Erraram','Responderam'];
+  const critRows=(criticas.length?criticas:qStats.sort((a,b)=>a.taxa-b.taxa)).map(x=>[x.enun,x.cat,x.comp,x.taxa+'%',x.erraram,x.responderam]);
+  // 3) Por assunto
+  const assHead=['Assunto','% acerto','Respostas'];
+  const assRows=(_metrData.assuntos||[]).map(a=>[a.nome,a.taxa+'%',a.n]);
+  // monta o arquivo
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([notasHead,...notasRows]), 'Notas');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([ ['Questões que mais da metade errou (acerto < 50%)'], [], critHead, ...critRows ]), 'Questões críticas');
+  if(assRows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([assHead,...assRows]), 'Por assunto');
+  const hoje=new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `relatorio_avaliacoes_${hoje}.xlsx`);
+  toast('Relatório exportado.','ok');
 }
 
 // ══════════════════════════════════════════════════════════
