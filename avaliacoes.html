@@ -144,6 +144,7 @@
 </div>
 
 <div class="modal" id="modal"><div class="box" id="modal-box"></div></div>
+<div class="modal" id="modal2" style="z-index:60"><div class="box wide" id="modal2-box"></div></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -187,6 +188,14 @@ const modal=document.getElementById('modal'), modalBox=document.getElementById('
 function openModal(html,wide){ modalBox.className='box'+(wide?' wide':''); modalBox.innerHTML=html; modal.classList.add('open'); }
 function closeModal(){ modal.classList.remove('open'); }
 modal.addEventListener('click',e=>{ if(e.target===modal) closeModal(); });
+// 2º modal (seletor de questões sobre o formulário da avaliação)
+const modal2=document.getElementById('modal2'), modal2Box=document.getElementById('modal2-box');
+function openModal2(html){ modal2Box.innerHTML=html; modal2.classList.add('open'); }
+function closeModal2(){ modal2.classList.remove('open'); }
+modal2.addEventListener('click',e=>{ if(e.target===modal2) closeModal2(); });
+// competência (mês) "AAAA-MM" → "out/2026"
+function fmtComp(c){ if(!c) return '—'; const p=String(c).split('-'); if(p.length<2) return c; const mes=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][(+p[1])-1]||p[1]; return `${mes}/${p[0]}`; }
+function normComp(s){ s=String(s||'').trim(); let m; if(m=s.match(/^(\d{4})[-\/](\d{1,2})$/)) return m[1]+'-'+String(m[2]).padStart(2,'0'); if(m=s.match(/^(\d{1,2})[\/-](\d{4})$/)) return m[2]+'-'+String(m[1]).padStart(2,'0'); return ''; }
 
 // ── Tema ──
 function aplicarTema(){ const t=localStorage.getItem('upseller_tema'); if(t==='light'){document.documentElement.setAttribute('data-theme','light');document.getElementById('btn-tema').textContent='☀️';} else {document.documentElement.removeAttribute('data-theme');document.getElementById('btn-tema').textContent='🌙';} }
@@ -472,6 +481,7 @@ async function viewBanco(){
         <div class="row" style="margin-top:12px">
           <input id="bq-busca" placeholder="Buscar no enunciado…" oninput="filtrarBanco()">
           <select id="bq-cat" onchange="filtrarBanco()"><option value="">Todas as categorias</option>${_cats.map(c=>`<option value="${c.id}">${esc(c.nome)}</option>`).join('')}</select>
+          <select id="bq-comp" onchange="filtrarBanco()"><option value="">Todas as competências</option>${[...new Set(_qs.map(q=>q.competencia).filter(Boolean))].sort().reverse().map(c=>`<option value="${c}">${fmtComp(c)}</option>`).join('')}</select>
           <select id="bq-tipo" onchange="filtrarBanco()"><option value="">Todos os tipos</option><option value="objetiva">Objetiva</option><option value="dissertativa">Dissertativa</option></select>
         </div>
       </div>
@@ -480,15 +490,16 @@ async function viewBanco(){
   }catch(e){ v.innerHTML=`<div class="card" style="color:var(--red)">Erro: ${esc(e.message)}. Rodou o SQL_avaliacoes.sql?</div>`; }
 }
 function filtrarBanco(){
-  const q=(inVal('bq-busca')||'').toLowerCase(), cat=inVal('bq-cat'), tipo=inVal('bq-tipo');
+  const q=(inVal('bq-busca')||'').toLowerCase(), cat=inVal('bq-cat'), comp=inVal('bq-comp'), tipo=inVal('bq-tipo');
   const catMap={}; _cats.forEach(c=>catMap[c.id]=c.nome);
-  const lista=_qs.filter(x=>(!q||x.enunciado.toLowerCase().includes(q))&&(!cat||x.categoria_id===cat)&&(!tipo||x.tipo===tipo));
+  const lista=_qs.filter(x=>(!q||x.enunciado.toLowerCase().includes(q))&&(!cat||x.categoria_id===cat)&&(!comp||x.competencia===comp)&&(!tipo||x.tipo===tipo));
   const el=document.getElementById('bq-lista');
   if(!lista.length){ el.innerHTML=`<div class="center muted" style="padding:20px">Nenhuma questão.</div>`; return; }
-  el.innerHTML=`<table><thead><tr><th>Enunciado</th><th>Categoria</th><th>Tipo</th><th>Peso</th><th></th></tr></thead><tbody>`+
+  el.innerHTML=`<table><thead><tr><th>Enunciado</th><th>Categoria</th><th>Competência</th><th>Tipo</th><th>Peso</th><th></th></tr></thead><tbody>`+
     lista.map(x=>`<tr>
       <td>${esc(x.enunciado.slice(0,80))}${x.enunciado.length>80?'…':''}</td>
       <td class="muted">${esc(catMap[x.categoria_id]||'—')}</td>
+      <td class="muted">${fmtComp(x.competencia)}</td>
       <td>${x.tipo==='objetiva'?'<span class="badge b-blue">Objetiva</span>':'<span class="badge b-amber">Dissertativa</span>'}</td>
       <td>${x.peso}</td>
       <td style="white-space:nowrap"><button class="btn ghost sm" onclick="modalQuestao('${x.id}')">✏️</button>
@@ -503,6 +514,7 @@ function modalQuestao(id){
       <div><label>Categoria</label><select id="q-cat"><option value="">—</option>${_cats.map(c=>`<option value="${c.id}" ${c.id===q.categoria_id?'selected':''}>${esc(c.nome)}</option>`).join('')}</select></div>
       <div><label>Tipo</label><select id="q-tipo" onchange="toggleAlts()"><option value="objetiva" ${q.tipo==='objetiva'?'selected':''}>Objetiva</option><option value="dissertativa" ${q.tipo==='dissertativa'?'selected':''}>Dissertativa</option></select></div>
       <div><label>Peso (pontos)</label><input id="q-peso" type="number" step="0.5" min="0" value="${q.peso??1}"></div>
+      <div><label>Competência (mês)</label><input id="q-comp" type="month" value="${q.competencia||''}"></div>
     </div>
     <div id="q-alts">
       ${['A','B','C','D','E'].map(k=>`<div class="row" style="align-items:center"><div style="flex:0;min-width:24px;font-weight:700">${k}</div><input class="q-alt" data-k="${k}" value="${esc(alts[k]||'')}" placeholder="Alternativa ${k} (vazio = não usar)"></div>`).join('')}
@@ -524,7 +536,8 @@ async function salvarQuestao(id){
     if(!resp||!alts[resp]){ toast('Escolha a resposta correta (entre as alternativas preenchidas).','err'); return; }
   } else { resp=null; }
   const body={ enunciado:enun, tipo, categoria_id:inVal('q-cat')||null, peso:parseFloat(inVal('q-peso'))||1,
-    alternativas: tipo==='objetiva'?alts:null, resposta_correta:resp, explicacao:inVal('q-exp').trim()||null };
+    alternativas: tipo==='objetiva'?alts:null, resposta_correta:resp, explicacao:inVal('q-exp').trim()||null,
+    competencia:inVal('q-comp')||null };
   try{
     if(id){ await patch(`aval_questoes?id=eq.${id}`, body); } else { body.criado_por=U.id; await post('aval_questoes', body); }
     closeModal(); toast('Questão salva.','ok'); viewBanco();
@@ -555,11 +568,14 @@ async function delCategoria(id){
 // SUPER GESTOR — Importar planilha
 // ══════════════════════════════════════════════════════════
 let _importRows=[];
+let _bancoQ=[], _bancoCatMap={}, _avalSel=[];  // estado do seletor de questões da avaliação
 async function viewImportar(){
   const v=document.getElementById('view');
   v.innerHTML=`<div class="card"><h2>Importar questões por planilha</h2>
     <div class="muted" style="margin:6px 0 12px">Baixe o modelo, preencha e envie. Colunas: <b>categoria, enunciado, tipo, alternativa_a..e, resposta_correta, peso, explicacao</b>.</div>
-    <div class="row" style="flex:0;gap:8px">
+    <div style="max-width:260px"><label>Competência padrão (mês)</label><input id="imp-comp" type="month">
+      <div class="muted" style="font-size:11px;margin-top:3px">Usada nas linhas sem a coluna "competencia".</div></div>
+    <div class="row" style="flex:0;gap:8px;margin-top:12px">
       <button class="btn ghost" onclick="baixarModelo()">⬇️ Baixar modelo (.xlsx)</button>
       <label class="btn primary" style="flex:0;cursor:pointer;margin:0">📥 Escolher planilha<input type="file" id="imp-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="lerPlanilha(this.files[0])"></label>
     </div>
@@ -567,10 +583,10 @@ async function viewImportar(){
   <div id="imp-preview"></div>`;
 }
 function baixarModelo(){
-  const head=["categoria","enunciado","tipo","alternativa_a","alternativa_b","alternativa_c","alternativa_d","alternativa_e","resposta_correta","peso","explicacao"];
+  const head=["categoria","competencia","enunciado","tipo","alternativa_a","alternativa_b","alternativa_c","alternativa_d","alternativa_e","resposta_correta","peso","explicacao"];
   const ex=[
-    ["Produto","Qual é o prazo padrão de entrega?","objetiva","24 horas","3 dias úteis","7 dias úteis","15 dias úteis","","C",1,"Prazo padrão: 7 dias úteis."],
-    ["Atendimento","Como você conduziria um cliente insatisfeito?","dissertativa","","","","","","",2,"Avaliar empatia e solução."],
+    ["Produto","2026-10","Qual é o prazo padrão de entrega?","objetiva","24 horas","3 dias úteis","7 dias úteis","15 dias úteis","","C",1,"Prazo padrão: 7 dias úteis."],
+    ["Atendimento","2026-10","Como você conduziria um cliente insatisfeito?","dissertativa","","","","","","",2,"Avaliar empatia e solução."],
   ];
   const ws=XLSX.utils.aoa_to_sheet([head,...ex]);
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Questões");
@@ -590,7 +606,8 @@ function lerPlanilha(file){
         const alts={}; ['a','b','c','d','e'].forEach(L=>{ const val=g('alternativa_'+L,'alt_'+L,L); if(val) alts[L.toUpperCase()]=val; });
         const resp=(g('resposta_correta','resposta','correta','gabarito')||'').toUpperCase().slice(0,1);
         const peso=parseFloat(String(g('peso','pontos')).replace(',','.'))||1;
-        const row={ _linha:idx+2, categoria:g('categoria','assunto'), enunciado:g('enunciado','pergunta','questao','questão'),
+        const row={ _linha:idx+2, categoria:g('categoria','assunto'), competencia:normComp(g('competencia','competência','mes','mês')),
+          enunciado:g('enunciado','pergunta','questao','questão'),
           tipo, alternativas:alts, resposta_correta: tipo==='objetiva'?resp:'', peso, explicacao:g('explicacao','explicação','comentario') };
         row._erros=[];
         if(!row.enunciado) row._erros.push('sem enunciado');
@@ -607,9 +624,10 @@ function renderPreviewImport(){
   const ok=_importRows.filter(r=>!r._erros.length), bad=_importRows.filter(r=>r._erros.length);
   el.innerHTML=`<div class="card"><h2>Pré-visualização</h2>
     <div class="muted" style="margin:6px 0">${ok.length} válida(s) · ${bad.length} com problema(s)</div>
-    <div style="overflow:auto"><table><thead><tr><th>Linha</th><th>Categoria</th><th>Enunciado</th><th>Tipo</th><th>Correta</th><th>Peso</th><th>Status</th></tr></thead><tbody>`+
+    <div style="overflow:auto"><table><thead><tr><th>Linha</th><th>Categoria</th><th>Competência</th><th>Enunciado</th><th>Tipo</th><th>Correta</th><th>Peso</th><th>Status</th></tr></thead><tbody>`+
     _importRows.map(r=>`<tr>
       <td>${r._linha}</td><td class="muted">${esc(r.categoria||'—')}</td>
+      <td class="muted">${r.competencia?fmtComp(r.competencia):'<span style="opacity:.6">(padrão)</span>'}</td>
       <td>${esc((r.enunciado||'').slice(0,60))}${r.enunciado.length>60?'…':''}</td>
       <td>${r.tipo==='objetiva'?'Obj':'Diss'}</td><td>${esc(r.resposta_correta||'—')}</td><td>${r.peso}</td>
       <td>${r._erros.length?`<span class="badge b-red">${esc(r._erros.join(', '))}</span>`:'<span class="badge b-green">ok</span>'}</td>
@@ -632,9 +650,10 @@ async function confirmarImport(){
         if(ex && ex.length) nomeToId[key]=ex[0].id; else throw e;
       }
     }
+    const compPad=inVal('imp-comp')||null;
     const payload=ok.map(r=>({ enunciado:r.enunciado, tipo:r.tipo, categoria_id: r.categoria?nomeToId[r.categoria.toLowerCase()]:null,
       alternativas: r.tipo==='objetiva'?r.alternativas:null, resposta_correta:r.resposta_correta||null,
-      peso:r.peso, explicacao:r.explicacao||null, criado_por:U.id }));
+      peso:r.peso, explicacao:r.explicacao||null, competencia: r.competencia||compPad, criado_por:U.id }));
     await post('aval_questoes', payload);
     toast(`${payload.length} questão(ões) importada(s)!`,'ok');
     _importRows=[]; abaAtual='banco'; renderTabs(); viewBanco();
@@ -673,17 +692,18 @@ async function viewAvaliacoes(){
 async function modalAvaliacao(id){
   const [cats,qs,colabs]=await Promise.all([
     get('aval_categorias?select=*&order=nome.asc'),
-    get('aval_questoes?select=id,enunciado,tipo,peso,categoria_id&order=created_at.desc'),
+    get('aval_questoes?select=id,enunciado,tipo,peso,categoria_id,competencia&order=created_at.desc'),
     get('colaboradores?select=id,nome,apelido,ativo&order=nome.asc')
   ]);
   const catMap={}; cats.forEach(c=>catMap[c.id]=c.nome);
+  _bancoQ=qs; _bancoCatMap=catMap;
   let a={titulo:'',descricao:'',nota_corte:70,inicio:'',fim:'',embaralhar:false}, selQ=[], selD=[];
   if(id){
     a=(await get(`avaliacoes?id=eq.${id}&select=*&limit=1`))[0];
     selQ=(await get(`avaliacao_questoes?avaliacao_id=eq.${id}&select=questao_id,peso,ordem&order=ordem.asc`)).map(x=>({id:x.questao_id,peso:x.peso}));
     selD=(await get(`avaliacao_destinatarios?avaliacao_id=eq.${id}&select=colaborador_id`)).map(x=>x.colaborador_id);
   }
-  const selQIds=selQ.map(s=>s.id);
+  _avalSel=selQ.map(s=>s.id);
   openModal(`<h2>${id?'Editar':'Nova'} avaliação</h2>
     <label>Título</label><input id="a-tit" value="${esc(a.titulo)}">
     <label>Descrição</label><textarea id="a-desc">${esc(a.descricao||'')}</textarea>
@@ -693,14 +713,9 @@ async function modalAvaliacao(id){
       <div><label>Fim (opcional)</label><input id="a-fim" type="datetime-local" value="${toLocalInput(a.fim)}"></div>
     </div>
     <label class="chk" style="margin-top:10px"><input type="checkbox" id="a-emb" ${a.embaralhar?'checked':''}> Embaralhar ordem das questões</label>
-    <label>Questões (${qs.length} no banco)</label>
-    <div style="max-height:220px;overflow:auto;border:1px solid var(--border);border-radius:9px;padding:8px">
-      ${qs.length? qs.map(q=>`<label class="chk"><input type="checkbox" class="a-q" value="${q.id}" ${selQIds.includes(q.id)?'checked':''}>
-        <span style="flex:1">${esc(q.enunciado.slice(0,70))}${q.enunciado.length>70?'…':''}</span>
-        <span class="badge ${q.tipo==='objetiva'?'b-blue':'b-amber'}">${q.tipo==='objetiva'?'Obj':'Diss'}</span>
-        <span class="muted" style="font-size:11px">${esc(catMap[q.categoria_id]||'')} · ${q.peso}pt</span></label>`).join('')
-        : '<div class="muted">Nenhuma questão no banco. Cadastre ou importe primeiro.</div>'}
-    </div>
+    <label>Questões da prova (<span id="a-qcount">0</span>)</label>
+    <div id="a-selecionadas" style="border:1px solid var(--border);border-radius:9px;padding:8px;min-height:52px;max-height:260px;overflow:auto"></div>
+    <button type="button" class="btn ghost sm" style="margin-top:8px" onclick="abrirPicker()">➕ Adicionar questões</button>
     <label style="margin-top:10px">Destinatários</label>
     <div style="margin-bottom:6px"><a onclick="document.querySelectorAll('.a-d').forEach(c=>c.checked=true)">marcar todos</a> · <a onclick="document.querySelectorAll('.a-d').forEach(c=>c.checked=false)">limpar</a></div>
     <div style="max-height:180px;overflow:auto;border:1px solid var(--border);border-radius:9px;padding:8px">
@@ -708,10 +723,60 @@ async function modalAvaliacao(id){
     </div>
     <div style="margin-top:14px"><button class="btn primary" onclick="salvarAvaliacao('${id||''}')">Salvar</button>
     <button class="btn ghost" onclick="closeModal()">Cancelar</button></div>`, true);
+  renderSelecionadas();
 }
+
+// ── Seletor de questões (lista escolhida + picker com filtros) ──
+function renderSelecionadas(){
+  const el=document.getElementById('a-selecionadas'); if(!el) return;
+  const cnt=document.getElementById('a-qcount'); if(cnt) cnt.textContent=_avalSel.length;
+  if(!_avalSel.length){ el.innerHTML='<div class="muted" style="padding:6px">Nenhuma questão ainda. Clique em "Adicionar questões".</div>'; return; }
+  el.innerHTML=_avalSel.map((id,i)=>{ const q=_bancoQ.find(x=>x.id===id)||{};
+    return `<div class="chk" style="cursor:default"><span style="flex:0;min-width:22px;color:var(--muted)">${i+1}.</span>
+      <span style="flex:1">${esc((q.enunciado||'').slice(0,70))}${(q.enunciado||'').length>70?'…':''}</span>
+      <span class="badge ${q.tipo==='objetiva'?'b-blue':'b-amber'}">${q.tipo==='objetiva'?'Obj':'Diss'}</span>
+      <span class="muted" style="font-size:11px">${esc(_bancoCatMap[q.categoria_id]||'')}${q.competencia?' · '+fmtComp(q.competencia):''} · ${q.peso}pt</span>
+      <button type="button" class="btn ghost sm" title="Remover" onclick="removerSel('${id}')">✕</button></div>`;
+  }).join('');
+}
+function removerSel(id){ _avalSel=_avalSel.filter(x=>x!==id); renderSelecionadas(); }
+function abrirPicker(){
+  const comps=[...new Set(_bancoQ.map(q=>q.competencia).filter(Boolean))].sort().reverse();
+  const cats=[...new Set(_bancoQ.map(q=>q.categoria_id).filter(Boolean))].map(id=>({id,nome:_bancoCatMap[id]||'—'}));
+  openModal2(`<h2>Adicionar questões</h2>
+    <div class="row">
+      <input id="pk-busca" placeholder="Buscar no enunciado…" oninput="filtrarPicker()">
+      <select id="pk-cat" onchange="filtrarPicker()"><option value="">Todas categorias</option>${cats.map(c=>`<option value="${c.id}">${esc(c.nome)}</option>`).join('')}</select>
+      <select id="pk-comp" onchange="filtrarPicker()"><option value="">Todas competências</option>${comps.map(c=>`<option value="${c}">${fmtComp(c)}</option>`).join('')}</select>
+      <select id="pk-tipo" onchange="filtrarPicker()"><option value="">Todos tipos</option><option value="objetiva">Objetiva</option><option value="dissertativa">Dissertativa</option></select>
+    </div>
+    <div style="margin:8px 0;font-size:12px"><a onclick="pkMarcar(true)">marcar visíveis</a> · <a onclick="pkMarcar(false)">limpar</a></div>
+    <div id="pk-lista" style="max-height:360px;overflow:auto;border:1px solid var(--border);border-radius:9px;padding:8px"></div>
+    <div style="margin-top:14px"><button class="btn primary" onclick="addSelecionadas()">Adicionar selecionadas</button>
+    <button class="btn ghost" onclick="closeModal2()">Fechar</button></div>`);
+  filtrarPicker();
+}
+function filtrarPicker(){
+  const q=(inVal('pk-busca')||'').toLowerCase(), cat=inVal('pk-cat'), comp=inVal('pk-comp'), tipo=inVal('pk-tipo');
+  const disp=_bancoQ.filter(x=>!_avalSel.includes(x.id)
+    && (!q||x.enunciado.toLowerCase().includes(q)) && (!cat||x.categoria_id===cat)
+    && (!comp||x.competencia===comp) && (!tipo||x.tipo===tipo));
+  const el=document.getElementById('pk-lista');
+  el.innerHTML = disp.length ? disp.map(q2=>`<label class="chk"><input type="checkbox" class="pk-q" value="${q2.id}">
+      <span style="flex:1">${esc(q2.enunciado.slice(0,80))}${q2.enunciado.length>80?'…':''}</span>
+      <span class="badge ${q2.tipo==='objetiva'?'b-blue':'b-amber'}">${q2.tipo==='objetiva'?'Obj':'Diss'}</span>
+      <span class="muted" style="font-size:11px">${esc(_bancoCatMap[q2.categoria_id]||'')}${q2.competencia?' · '+fmtComp(q2.competencia):''} · ${q2.peso}pt</span></label>`).join('')
+    : '<div class="muted" style="padding:6px">Nenhuma questão encontrada (ou já estão na prova).</div>';
+}
+function pkMarcar(v){ document.querySelectorAll('.pk-q').forEach(c=>c.checked=v); }
+function addSelecionadas(){
+  [...document.querySelectorAll('.pk-q:checked')].map(c=>c.value).forEach(id=>{ if(!_avalSel.includes(id)) _avalSel.push(id); });
+  closeModal2(); renderSelecionadas();
+}
+
 async function salvarAvaliacao(id){
   const titulo=inVal('a-tit').trim(); if(!titulo){ toast('Dê um título.','err'); return; }
-  const qs=[...document.querySelectorAll('.a-q:checked')].map(c=>c.value);
+  const qs=_avalSel.slice();
   const ds=[...document.querySelectorAll('.a-d:checked')].map(c=>c.value);
   if(!qs.length){ toast('Selecione pelo menos uma questão.','err'); return; }
   if(!ds.length){ toast('Selecione pelo menos um destinatário.','err'); return; }
@@ -869,6 +934,7 @@ async function salvarCorrecao(publicar){
 // ══════════════════════════════════════════════════════════
 // MÉTRICAS (gestor / super)
 // ══════════════════════════════════════════════════════════
+let _metr=null;
 async function viewMetricas(){
   const v=document.getElementById('view');
   try{
@@ -881,50 +947,75 @@ async function viewMetricas(){
       get(`avaliacao_respostas?tentativa_id=in.(${tents.map(t=>t.id).join(',')})&select=*`)
     ]);
     const am={}; avs.forEach(a=>am[a.id]=a.titulo); const cm={}; colabs.forEach(c=>cm[c.id]=c.apelido||c.nome);
-    // por avaliação
-    const porAval={}; tents.forEach(t=>{ (porAval[t.avaliacao_id]=porAval[t.avaliacao_id]||[]).push(t.percentual||0); });
-    // ranking por colaborador
-    const porColab={}; tents.forEach(t=>{ (porColab[t.colaborador_id]=porColab[t.colaborador_id]||[]).push(t.percentual||0); });
-    const ranking=Object.keys(porColab).map(cid=>({nome:cm[cid]||'—',media:Math.round(porColab[cid].reduce((a,b)=>a+b,0)/porColab[cid].length),n:porColab[cid].length})).sort((a,b)=>b.media-a.media);
-    // por questão (dificuldade) + por assunto
     const qids=[...new Set(resp.map(r=>r.questao_id))];
     const qs=qids.length? await get(`aval_questoes?id=in.(${qids.join(',')})&select=id,enunciado,categoria_id`):[];
     const qm={}; qs.forEach(q=>qm[q.id]=q);
     const catIds=[...new Set(qs.map(q=>q.categoria_id).filter(Boolean))];
     const cats=catIds.length? await get(`aval_categorias?id=in.(${catIds.join(',')})&select=id,nome`):[];
     const catNome={}; cats.forEach(c=>catNome[c.id]=c.nome);
-    const porQ={}, porAssunto={};
-    resp.forEach(r=>{
-      if(r.correta==null) return;
-      const q=qm[r.questao_id]; if(!q) return;
-      (porQ[r.questao_id]=porQ[r.questao_id]||{ok:0,n:0,enun:q.enunciado}); porQ[r.questao_id].n++; if(r.correta)porQ[r.questao_id].ok++;
-      const cat=catNome[q.categoria_id]||'Sem categoria';
-      (porAssunto[cat]=porAssunto[cat]||{ok:0,n:0}); porAssunto[cat].n++; if(r.correta)porAssunto[cat].ok++;
-    });
-    const dificeis=Object.values(porQ).map(x=>({enun:x.enun,taxa:Math.round(x.ok/x.n*100),n:x.n})).sort((a,b)=>a.taxa-b.taxa).slice(0,8);
-    const assuntos=Object.keys(porAssunto).map(k=>({nome:k,taxa:Math.round(porAssunto[k].ok/porAssunto[k].n*100),n:porAssunto[k].n})).sort((a,b)=>a.taxa-b.taxa);
-    const mediaGeral=Math.round(tents.reduce((s,t)=>s+(t.percentual||0),0)/tents.length);
-
-    const bars=(arr,label,val,color)=>arr.map(x=>`<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
-      <span>${esc(label(x))}</span><span class="muted">${val(x)}</span></div>
-      <div class="bar"><span style="width:${x.taxa!=null?x.taxa:x.media}%;background:${color?color(x):'var(--accent)'}"></span></div></div>`).join('');
-
-    v.innerHTML=`<div class="grid c3" style="margin-bottom:14px">
-        <div class="kpi"><div class="n">${tents.length}</div><div class="l">Provas corrigidas</div></div>
-        <div class="kpi"><div class="n">${mediaGeral}%</div><div class="l">Média geral da equipe</div></div>
-        <div class="kpi"><div class="n">${ranking.length}</div><div class="l">Colaboradores avaliados</div></div>
+    _metr={tents,resp,am,cm,qm,catNome,avs,colabs};
+    v.innerHTML=`<div class="card"><h2>Filtros</h2>
+      <div class="row" style="margin-top:8px">
+        <div><label>De</label><input type="date" id="mt-de"></div>
+        <div><label>Até</label><input type="date" id="mt-ate"></div>
+        <div><label>Colaborador</label><select id="mt-colab"><option value="">Todos</option>${colabs.map(c=>`<option value="${c.id}">${esc(c.apelido||c.nome)}</option>`).join('')}</select></div>
+        <div><label>Avaliação</label><select id="mt-aval"><option value="">Todas</option>${avs.map(a=>`<option value="${a.id}">${esc(a.titulo)}</option>`).join('')}</select></div>
       </div>
-      <div class="grid c2">
-        <div class="card"><h2>🏆 Ranking (média)</h2><div style="margin-top:10px">${bars(ranking,x=>x.nome,x=>x.media+'% ('+x.n+')',x=>x.media>=70?'var(--green)':'var(--amber)')}</div></div>
-        <div class="card"><h2>📚 Dificuldade por assunto</h2><div style="margin-top:10px">${assuntos.length?bars(assuntos,x=>x.nome,x=>x.taxa+'% acertos',x=>x.taxa>=70?'var(--green)':'var(--red)'):'<span class="muted">Sem dados.</span>'}</div></div>
-      </div>
-      <div class="card"><h2>🔻 Questões que mais erram</h2><div style="margin-top:10px">${dificeis.length?bars(dificeis,x=>esc(x.enun.slice(0,60))+(x.enun.length>60?'…':''),x=>x.taxa+'% acertos',x=>x.taxa>=70?'var(--green)':'var(--red)'):'<span class="muted">Sem dados.</span>'}</div></div>
-      <div class="card"><h2>Média por avaliação</h2><div style="margin-top:10px">${
-        Object.keys(porAval).map(id=>{const arr=porAval[id];const m=Math.round(arr.reduce((a,b)=>a+b,0)/arr.length);
-          return `<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span>${esc(am[id]||'—')}</span><span class="muted">${m}% (${arr.length})</span></div><div class="bar"><span style="width:${m}%"></span></div></div>`;
-        }).join('')
-      }</div></div>`;
+      <div style="margin-top:10px"><button class="btn primary sm" onclick="renderMetricas()">Aplicar</button>
+      <button class="btn ghost sm" onclick="limparFiltrosMetr()">Limpar</button></div></div>
+      <div id="metr-body"></div>`;
+    renderMetricas();
   }catch(e){ v.innerHTML=`<div class="card" style="color:var(--red)">Erro: ${esc(e.message)}</div>`; }
+}
+function limparFiltrosMetr(){ ['mt-de','mt-ate','mt-colab','mt-aval'].forEach(id=>{const el=document.getElementById(id); if(el)el.value='';}); renderMetricas(); }
+function renderMetricas(){
+  if(!_metr) return;
+  const {am,cm,qm,catNome}=_metr;
+  const de=inVal('mt-de'), ate=inVal('mt-ate'), fColab=inVal('mt-colab'), fAval=inVal('mt-aval');
+  const dia=t=> (t.corrigido_em||t.enviado_em||'').slice(0,10);
+  const tents=_metr.tents.filter(t=>{
+    const d=dia(t);
+    if(de && d && d<de) return false;
+    if(ate && d && d>ate) return false;
+    if(fColab && t.colaborador_id!==fColab) return false;
+    if(fAval && t.avaliacao_id!==fAval) return false;
+    return true;
+  });
+  const tentIds=new Set(tents.map(t=>t.id));
+  const resp=_metr.resp.filter(r=>tentIds.has(r.tentativa_id));
+  const body=document.getElementById('metr-body'); if(!body) return;
+  if(!tents.length){ body.innerHTML=`<div class="card center muted">Nenhum resultado para os filtros escolhidos.</div>`; return; }
+  const porAval={}; tents.forEach(t=>{ (porAval[t.avaliacao_id]=porAval[t.avaliacao_id]||[]).push(t.percentual||0); });
+  const porColab={}; tents.forEach(t=>{ (porColab[t.colaborador_id]=porColab[t.colaborador_id]||[]).push(t.percentual||0); });
+  const ranking=Object.keys(porColab).map(cid=>({nome:cm[cid]||'—',media:Math.round(porColab[cid].reduce((a,b)=>a+b,0)/porColab[cid].length),n:porColab[cid].length})).sort((a,b)=>b.media-a.media);
+  const porQ={}, porAssunto={};
+  resp.forEach(r=>{
+    if(r.correta==null) return; const q=qm[r.questao_id]; if(!q) return;
+    (porQ[r.questao_id]=porQ[r.questao_id]||{ok:0,n:0,enun:q.enunciado}); porQ[r.questao_id].n++; if(r.correta)porQ[r.questao_id].ok++;
+    const cat=catNome[q.categoria_id]||'Sem categoria';
+    (porAssunto[cat]=porAssunto[cat]||{ok:0,n:0}); porAssunto[cat].n++; if(r.correta)porAssunto[cat].ok++;
+  });
+  const dificeis=Object.values(porQ).map(x=>({enun:x.enun,taxa:Math.round(x.ok/x.n*100),n:x.n})).sort((a,b)=>a.taxa-b.taxa).slice(0,8);
+  const assuntos=Object.keys(porAssunto).map(k=>({nome:k,taxa:Math.round(porAssunto[k].ok/porAssunto[k].n*100),n:porAssunto[k].n})).sort((a,b)=>a.taxa-b.taxa);
+  const mediaGeral=Math.round(tents.reduce((s,t)=>s+(t.percentual||0),0)/tents.length);
+  const bars=(arr,label,val,color)=>arr.map(x=>`<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+    <span>${esc(label(x))}</span><span class="muted">${val(x)}</span></div>
+    <div class="bar"><span style="width:${x.taxa!=null?x.taxa:x.media}%;background:${color?color(x):'var(--accent)'}"></span></div></div>`).join('');
+  body.innerHTML=`<div class="grid c3" style="margin-bottom:14px">
+      <div class="kpi"><div class="n">${tents.length}</div><div class="l">Provas corrigidas</div></div>
+      <div class="kpi"><div class="n">${mediaGeral}%</div><div class="l">Média geral</div></div>
+      <div class="kpi"><div class="n">${ranking.length}</div><div class="l">Colaboradores</div></div>
+    </div>
+    <div class="grid c2">
+      <div class="card"><h2>🏆 Ranking (média)</h2><div style="margin-top:10px">${bars(ranking,x=>x.nome,x=>x.media+'% ('+x.n+')',x=>x.media>=70?'var(--green)':'var(--amber)')}</div></div>
+      <div class="card"><h2>📚 Dificuldade por assunto</h2><div style="margin-top:10px">${assuntos.length?bars(assuntos,x=>x.nome,x=>x.taxa+'% acertos',x=>x.taxa>=70?'var(--green)':'var(--red)'):'<span class="muted">Sem dados.</span>'}</div></div>
+    </div>
+    <div class="card"><h2>🔻 Questões que mais erram</h2><div style="margin-top:10px">${dificeis.length?bars(dificeis,x=>esc(x.enun.slice(0,60))+(x.enun.length>60?'…':''),x=>x.taxa+'% acertos',x=>x.taxa>=70?'var(--green)':'var(--red)'):'<span class="muted">Sem dados.</span>'}</div></div>
+    <div class="card"><h2>Média por avaliação</h2><div style="margin-top:10px">${
+      Object.keys(porAval).map(id=>{const arr=porAval[id];const m=Math.round(arr.reduce((a,b)=>a+b,0)/arr.length);
+        return `<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span>${esc(am[id]||'—')}</span><span class="muted">${m}% (${arr.length})</span></div><div class="bar"><span style="width:${m}%"></span></div></div>`;
+      }).join('')
+    }</div></div>`;
 }
 
 // ══════════════════════════════════════════════════════════
