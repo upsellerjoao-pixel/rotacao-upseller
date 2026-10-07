@@ -408,7 +408,7 @@ async function verResultado(tentId){
     v.innerHTML=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
         <div><h2>${esc(aval.titulo)}</h2><div class="muted">Resultado liberado</div></div>
         <div class="center"><div style="font-size:30px;font-weight:800;color:${aprovado?'var(--green)':'var(--red)'}">${pct}%</div>
-        ${aprovado!=null?`<span class="badge ${aprovado?'b-green':'b-red'}">${aprovado?'Aprovado':'Reprovado'}</span>`:''}</div>
+        ${aprovado!=null?`<span class="badge ${aprovado?'b-green':'b-red'}">${aprovado?'Aprovado':'Recuperação'}</span>`:''}</div>
       </div>
       <div class="muted" style="margin-top:8px">Nota: ${t.nota??'—'} / ${t.nota_max??'—'} · Corte: ${aval.nota_corte}%</div></div>`
       + resp.map((r,i)=>{
@@ -1050,7 +1050,7 @@ function renderMetricas(){
 function exportarRelatorio(){
   if(!_metrData || !_metrData.tents.length){ toast('Nada para exportar com os filtros atuais.','err'); return; }
   const {tents,am,cm,qm,catNome,porQ}=_metrData;
-  const sit=t=> t.aprovado==null?'—':(t.aprovado?'Aprovado':'Reprovado');
+  const sit=t=> t.aprovado==null?'—':(t.aprovado?'Aprovado':'Recuperação');
   // 1) Notas de todos os colaboradores
   const notasHead=['Colaborador','Avaliação','Nota','Nota máx','Percentual','Situação','Data correção'];
   const notasRows=tents.slice().sort((a,b)=>(cm[a.colaborador_id]||'').localeCompare(cm[b.colaborador_id]||''))
