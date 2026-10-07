@@ -899,15 +899,19 @@ async function corrigir(tentId){
             return `<div class="opt ${cls}"><div class="k">${k}</div><div>${esc(alts[k])}</div></div>`;
           }).join('');
           return `<div class="q"><div class="enun">${i+1}. ${esc(q.enunciado)} <span class="badge ${r.correta?'b-green':'b-red'}" style="float:right">${r.correta?'Acertou':'Errou'} · ${r.pontos||0}/${r.pontos_max}pt</span></div>${opts}
-            <div class="muted" style="font-size:12px;margin-top:6px">Correção automática: <b>${r.correta?'acertou':'errou'}</b>. Ajuste os pontos manualmente se quiser:</div>
-            <div class="row" style="max-width:200px;margin-top:4px"><input type="number" min="0" max="${r.pontos_max}" step="0.5" data-corr="${r.id}" data-max="${r.pontos_max}" data-tipo="obj" value="${r.pontos!=null?r.pontos:(r.correta?r.pontos_max:0)}" oninput="recalcCorr()"></div></div>`;
+            <div class="muted" style="font-size:12px;margin-top:6px">Correção automática: <b>${r.correta?'acertou':'errou'}</b>. Ajuste os pontos e/ou o máximo da questão:</div>
+            <div class="row" style="max-width:300px;margin-top:4px">
+              <div style="flex:0;min-width:120px"><label style="margin-top:0">Pontos</label><input type="number" min="0" step="0.5" data-corr="${r.id}" value="${r.pontos!=null?r.pontos:(r.correta?r.pontos_max:0)}" oninput="recalcCorr()"></div>
+              <div style="flex:0;min-width:120px"><label style="margin-top:0">Máx (peso)</label><input type="number" min="0" step="0.5" data-maxedit="${r.id}" value="${r.pontos_max}" oninput="recalcCorr()"></div>
+            </div></div>`;
         } else {
           return `<div class="q"><div class="enun">${i+1}. ${esc(q.enunciado)} <span class="muted" style="font-weight:400">(${r.pontos_max}pt)</span></div>
             <div class="muted" style="font-size:12px">Resposta do colaborador:</div>
             <div class="q" style="margin:4px 0;background:var(--card)">${esc(r.resposta||'—')}</div>
-            <div class="row"><div style="flex:0;min-width:160px"><label style="margin-top:0">Pontos (0 a ${r.pontos_max})</label>
-            <input type="number" min="0" max="${r.pontos_max}" step="0.5" data-corr="${r.id}" data-max="${r.pontos_max}" data-tipo="diss" value="${r.pontos!=null?r.pontos:''}" oninput="recalcCorr()"></div>
-            <div><label style="margin-top:0">Comentário (opcional)</label><input data-fb="${r.id}" value="${esc(r.feedback||'')}" placeholder="feedback para o colaborador"></div></div></div>`;
+            <div class="row">
+              <div style="flex:0;min-width:120px"><label style="margin-top:0">Pontos</label><input type="number" min="0" step="0.5" data-corr="${r.id}" value="${r.pontos!=null?r.pontos:''}" oninput="recalcCorr()"></div>
+              <div style="flex:0;min-width:120px"><label style="margin-top:0">Máx (peso)</label><input type="number" min="0" step="0.5" data-maxedit="${r.id}" value="${r.pontos_max}" oninput="recalcCorr()"></div>
+              <div><label style="margin-top:0">Comentário (opcional)</label><input data-fb="${r.id}" value="${esc(r.feedback||'')}" placeholder="feedback para o colaborador"></div></div></div>`;
         }
       }).join('')
       + `<div class="card"><button class="btn green" onclick="salvarCorrecao(true)">Salvar e publicar resultado</button>
@@ -916,14 +920,15 @@ async function corrigir(tentId){
     recalcCorr();
   }catch(e){ v.innerHTML=`<div class="card" style="color:var(--red)">Erro: ${esc(e.message)}</div>`; }
 }
+function maxDe(rid){ const m=document.querySelector(`[data-maxedit="${rid}"]`); let v=m?parseFloat(m.value):NaN; if(isNaN(v)) v=0; return Math.max(0,v); }
 function pontosLinha(el){
-  const max=parseFloat(el.dataset.max)||0;
+  const max=maxDe(el.dataset.corr);
   let p=parseFloat(el.value); if(isNaN(p)) p=0;
   return Math.max(0, Math.min(max, p));
 }
 function recalcCorr(){
   let nota=0,max=0;
-  document.querySelectorAll('[data-corr]').forEach(sel=>{ nota+=pontosLinha(sel); max+=parseFloat(sel.dataset.max)||0; });
+  document.querySelectorAll('[data-corr]').forEach(sel=>{ nota+=pontosLinha(sel); max+=maxDe(sel.dataset.corr); });
   const pct=max?Math.round(nota/max*100):0;
   const el=document.getElementById('corr-nota'); if(el) el.innerHTML=`${pct}% <span class="muted" style="font-size:12px">(${nota}/${max})</span>`;
 }
@@ -932,10 +937,10 @@ async function salvarCorrecao(publicar){
   try{
     let nota=0,max=0;
     for(const sel of document.querySelectorAll('[data-corr]')){
-      const rid=sel.dataset.corr, pmax=parseFloat(sel.dataset.max)||0; const p=pontosLinha(sel);
+      const rid=sel.dataset.corr, pmax=maxDe(rid); const p=pontosLinha(sel);
       const fbEl=document.querySelector(`[data-fb="${rid}"]`); const fb=fbEl?fbEl.value.trim()||null:undefined;
       const correta = p>=pmax && pmax>0 ? true : (p<=0 ? false : null);
-      const body={pontos:p, correta}; if(fb!==undefined) body.feedback=fb;
+      const body={pontos:p, pontos_max:pmax, correta}; if(fb!==undefined) body.feedback=fb;
       await patch(`avaliacao_respostas?id=eq.${rid}`, body);
       nota+=p; max+=pmax;
     }
