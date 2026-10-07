@@ -684,6 +684,7 @@ async function viewAvaliacoes(){
             ${a.status==='disponivel'?`<button class="btn amber sm" onclick="mudarStatusAval('${a.id}','encerrada')">Encerrar</button>`:''}
             ${a.status==='encerrada'?`<button class="btn ghost sm" onclick="mudarStatusAval('${a.id}','disponivel')">Reabrir</button>`:''}
             <button class="btn ghost sm" onclick="verParticipacao('${a.id}')">Quem fez</button>
+            <button class="btn ghost sm" onclick="duplicarAvaliacao('${a.id}')">⧉ Duplicar</button>
             <button class="btn ghost sm" onclick="excluirAvaliacao('${a.id}')">🗑️</button>
           </div></div>`;
       }).join('')+`</div>` : `<div class="card center muted">Nenhuma avaliação. Crie a primeira.</div>`);
@@ -751,16 +752,22 @@ function abrirPicker(){
       <select id="pk-tipo" onchange="filtrarPicker()"><option value="">Todos tipos</option><option value="objetiva">Objetiva</option><option value="dissertativa">Dissertativa</option></select>
     </div>
     <div style="margin:8px 0;font-size:12px"><a onclick="pkMarcar(true)">marcar visíveis</a> · <a onclick="pkMarcar(false)">limpar</a></div>
-    <div id="pk-lista" style="max-height:360px;overflow:auto;border:1px solid var(--border);border-radius:9px;padding:8px"></div>
-    <div style="margin-top:14px"><button class="btn primary" onclick="addSelecionadas()">Adicionar selecionadas</button>
-    <button class="btn ghost" onclick="closeModal2()">Fechar</button></div>`);
+    <div id="pk-lista" style="max-height:340px;overflow:auto;border:1px solid var(--border);border-radius:9px;padding:8px"></div>
+    <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn green" onclick="addTodasFiltradas()">➕ Adicionar todas as filtradas (<span id="pk-count">0</span>)</button>
+      <button class="btn primary" onclick="addSelecionadas()">Adicionar marcadas</button>
+      <button class="btn ghost" onclick="closeModal2()">Fechar</button></div>`);
   filtrarPicker();
 }
-function filtrarPicker(){
+function pickerFiltradas(){
   const q=(inVal('pk-busca')||'').toLowerCase(), cat=inVal('pk-cat'), comp=inVal('pk-comp'), tipo=inVal('pk-tipo');
-  const disp=_bancoQ.filter(x=>!_avalSel.includes(x.id)
+  return _bancoQ.filter(x=>!_avalSel.includes(x.id)
     && (!q||x.enunciado.toLowerCase().includes(q)) && (!cat||x.categoria_id===cat)
     && (!comp||x.competencia===comp) && (!tipo||x.tipo===tipo));
+}
+function filtrarPicker(){
+  const disp=pickerFiltradas();
+  const cnt=document.getElementById('pk-count'); if(cnt) cnt.textContent=disp.length;
   const el=document.getElementById('pk-lista');
   el.innerHTML = disp.length ? disp.map(q2=>`<label class="chk"><input type="checkbox" class="pk-q" value="${q2.id}">
       <span style="flex:1">${esc(q2.enunciado.slice(0,80))}${q2.enunciado.length>80?'…':''}</span>
@@ -772,6 +779,12 @@ function pkMarcar(v){ document.querySelectorAll('.pk-q').forEach(c=>c.checked=v)
 function addSelecionadas(){
   [...document.querySelectorAll('.pk-q:checked')].map(c=>c.value).forEach(id=>{ if(!_avalSel.includes(id)) _avalSel.push(id); });
   closeModal2(); renderSelecionadas();
+}
+function addTodasFiltradas(){
+  const disp=pickerFiltradas();
+  if(!disp.length){ toast('Nenhuma questão nos filtros atuais.','err'); return; }
+  disp.forEach(q=>{ if(!_avalSel.includes(q.id)) _avalSel.push(q.id); });
+  closeModal2(); renderSelecionadas(); toast(`${disp.length} questão(ões) adicionada(s).`,'ok');
 }
 
 async function salvarAvaliacao(id){
@@ -798,6 +811,19 @@ async function mudarStatusAval(id,st){
   if(st==='disponivel' && !confirm('Disponibilizar para os colaboradores agora?')) return;
   try{ await patch(`avaliacoes?id=eq.${id}`,{status:st}); toast('Status atualizado.','ok'); viewAvaliacoes(); }
   catch(e){ toast('Erro: '+e.message,'err'); }
+}
+async function duplicarAvaliacao(id){
+  if(!confirm('Duplicar esta avaliação? Será criada uma cópia como RASCUNHO (mesmas questões e destinatários), para você ajustar e disponibilizar.')) return;
+  try{
+    const a=(await get(`avaliacoes?id=eq.${id}&select=*&limit=1`))[0];
+    const links=await get(`avaliacao_questoes?avaliacao_id=eq.${id}&select=questao_id,ordem,peso&order=ordem.asc`);
+    const dests=await get(`avaliacao_destinatarios?avaliacao_id=eq.${id}&select=colaborador_id`);
+    const novo=(await post('avaliacoes',{ titulo:(a.titulo||'Avaliação')+' (cópia)', descricao:a.descricao||null,
+      nota_corte:a.nota_corte, inicio:null, fim:null, embaralhar:a.embaralhar, status:'rascunho', criado_por:U.id }))[0];
+    if(links.length) await post('avaliacao_questoes', links.map(l=>({avaliacao_id:novo.id, questao_id:l.questao_id, ordem:l.ordem, peso:l.peso})));
+    if(dests.length) await post('avaliacao_destinatarios', dests.map(d=>({avaliacao_id:novo.id, colaborador_id:d.colaborador_id})));
+    toast('Avaliação duplicada (rascunho). Ajuste o período e disponibilize.','ok'); viewAvaliacoes();
+  }catch(e){ toast('Erro ao duplicar: '+e.message,'err'); }
 }
 async function excluirAvaliacao(id){
   if(!confirm('Excluir esta avaliação e todas as respostas dela? Não pode ser desfeito.')) return;
