@@ -1,0 +1,931 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Avaliações — Rotação Upseller</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:#0a0f1e; --card:#1a2235; --card2:#141b2a; --border:#1f2d45;
+    --accent:#2563eb; --accent2:#06b6d4; --green:#22c55e; --amber:#f59e0b; --red:#ef4444;
+    --text:#f1f5f9; --muted:#8294b0; --muted2:#5e6f8c;
+  }
+  :root[data-theme="light"]{
+    --bg:#f4f7fb; --card:#ffffff; --card2:#f1f5f9; --border:#e2e8f0;
+    --accent:#2563eb; --accent2:#0891b2; --green:#16a34a; --amber:#d97706; --red:#dc2626;
+    --text:#0f172a; --muted:#64748b; --muted2:#94a3b8;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.5}
+  a{color:var(--accent);cursor:pointer}
+  h1,h2,h3{margin:0}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 18px 60px}
+  /* header */
+  header{position:sticky;top:0;z-index:30;background:var(--bg);border-bottom:1px solid var(--border)}
+  .hd{max-width:1180px;margin:0 auto;display:flex;align-items:center;gap:14px;padding:12px 18px}
+  .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:18px}
+  .hd h1{font-size:16px;font-weight:600}
+  .hd .sub{font-size:11px;color:var(--muted)}
+  .hd .right{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+  .iconbtn{background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:9px;padding:7px 10px;cursor:pointer;font-size:14px}
+  .iconbtn:hover{border-color:var(--accent)}
+  /* tabs */
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:16px 0 18px}
+  .tab{background:var(--card);border:1px solid var(--border);color:var(--muted);border-radius:10px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:500}
+  .tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .tab:hover:not(.active){color:var(--text)}
+  /* cards */
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:14px}
+  .card h2{font-size:15px;margin-bottom:4px}
+  .card .muted{color:var(--muted);font-size:12px}
+  .grid{display:grid;gap:12px}
+  .grid.c2{grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
+  .grid.c3{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+  /* buttons */
+  .btn{border:none;border-radius:10px;padding:9px 15px;font-size:13px;font-weight:600;cursor:pointer;color:#fff;font-family:inherit}
+  .btn:hover{filter:brightness(1.08)}
+  .btn:disabled{opacity:.5;cursor:not-allowed;filter:none}
+  .btn.primary{background:var(--accent)}
+  .btn.green{background:var(--green)}
+  .btn.amber{background:var(--amber)}
+  .btn.red{background:var(--red)}
+  .btn.ghost{background:transparent;border:1px solid var(--border);color:var(--muted)}
+  .btn.sm{padding:6px 11px;font-size:12px}
+  /* inputs */
+  label{display:block;font-size:12px;color:var(--muted);margin:10px 0 5px}
+  input,select,textarea{width:100%;background:var(--card2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;color:var(--text);font-size:13px;font-family:inherit;outline:none}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+  textarea{min-height:76px;resize:vertical}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .row>*{flex:1;min-width:140px}
+  /* badges */
+  .badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:600}
+  .b-grey{background:rgba(130,148,176,.18);color:var(--muted)}
+  .b-blue{background:rgba(37,99,235,.18);color:#60a5fa}
+  .b-green{background:rgba(34,197,94,.18);color:#4ade80}
+  .b-amber{background:rgba(245,158,11,.18);color:#fbbf24}
+  .b-red{background:rgba(239,68,68,.18);color:#f87171}
+  /* table */
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--border)}
+  th{color:var(--muted);font-weight:600;font-size:12px}
+  tr:hover td{background:var(--card2)}
+  /* question block */
+  .q{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px}
+  .q .enun{font-weight:600;margin-bottom:10px}
+  .opt{display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid var(--border);border-radius:9px;margin-bottom:6px;cursor:pointer;background:var(--card)}
+  .opt:hover{border-color:var(--accent)}
+  .opt.sel{border-color:var(--accent);background:rgba(37,99,235,.12)}
+  .opt.ok{border-color:var(--green);background:rgba(34,197,94,.12)}
+  .opt.err{border-color:var(--red);background:rgba(239,68,68,.12)}
+  .opt .k{width:24px;height:24px;border-radius:50%;border:2px solid var(--muted2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+  .opt.sel .k{border-color:var(--accent);background:var(--accent);color:#fff}
+  /* modal */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:flex-start;justify-content:center;z-index:50;overflow:auto;padding:28px 14px}
+  .modal.open{display:flex}
+  .modal .box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;width:100%;max-width:640px}
+  .modal .box.wide{max-width:900px}
+  /* misc */
+  .center{text-align:center}
+  .muted{color:var(--muted)}
+  .spin{width:34px;height:34px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:sp 1s linear infinite;margin:30px auto}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 18px;font-size:13px;z-index:80;box-shadow:0 12px 40px rgba(0,0,0,.4);display:none}
+  .toast.show{display:block}
+  .toast.err{border-color:var(--red);color:#f87171}
+  .toast.ok{border-color:var(--green);color:#4ade80}
+  .bar{height:10px;background:var(--card2);border-radius:999px;overflow:hidden}
+  .bar>span{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+  .kpi{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:14px}
+  .kpi .n{font-size:26px;font-weight:700}
+  .kpi .l{font-size:11px;color:var(--muted);margin-top:2px}
+  .chk{display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid var(--border);border-radius:9px;background:var(--card2);margin-bottom:5px;cursor:pointer;font-size:13px}
+  .chk input{width:auto}
+  /* login */
+  #login{max-width:360px;margin:9vh auto 0}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login" class="card" style="display:none">
+  <div style="text-align:center;margin-bottom:6px"><div class="logo" style="margin:0 auto 10px">📝</div></div>
+  <h2 class="center">Avaliações</h2>
+  <div class="muted center" style="margin-bottom:8px">Entre com sua conta da Rotação</div>
+  <label>E-mail</label>
+  <input id="lg-email" type="email" placeholder="seu@email.com" autocomplete="username">
+  <label>Senha</label>
+  <input id="lg-senha" type="password" placeholder="••••••••" autocomplete="current-password">
+  <button class="btn primary" style="width:100%;margin-top:14px" id="lg-btn">Entrar</button>
+  <div id="lg-msg" class="center" style="margin-top:10px;font-size:12px;color:var(--red)"></div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
+  <header>
+    <div class="hd">
+      <div class="logo">📝</div>
+      <div>
+        <h1>Avaliações <span class="muted" style="font-weight:400">· Rotação Upseller</span></h1>
+        <div class="sub" id="hd-sub"></div>
+      </div>
+      <div class="right">
+        <span id="hd-user"></span>
+        <button class="iconbtn" id="btn-tema" title="Tema">🌙</button>
+        <button class="iconbtn" id="btn-sair" title="Sair">Sair</button>
+      </div>
+    </div>
+  </header>
+  <div class="wrap">
+    <div class="tabs" id="tabs"></div>
+    <div id="view"><div class="spin"></div></div>
+  </div>
+</div>
+
+<div class="modal" id="modal"><div class="box" id="modal-box"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+// CONFIG — mesmo projeto Supabase do painel da Rotação
+// ══════════════════════════════════════════════════════════
+const SB   = 'https://mqmfddozbqdujcbjbuqm.supabase.co';
+const ANON = 'sb_publishable_N9empCAKa-IOpo1iUVO0tA_mHrszSgh';
+const SVC  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xbWZkZG96YnFkdWpjYmpidXFtIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMxNTA5MSwiZXhwIjoyMDkxODkxMDkxfQ.23staoKFRDTJn1APIH27-8jOrq0Uw57mxFSaWNgEYFw';
+
+// ── REST helpers ──
+async function api(method, path, body, useSvc){
+  const key = useSvc ? SVC : ANON;
+  const res = await fetch(SB+'/rest/v1/'+path, {
+    method,
+    headers:{ apikey:key, Authorization:'Bearer '+key, 'Content-Type':'application/json',
+              Prefer: method==='GET' ? '' : 'return=representation' },
+    body: body!==undefined && body!==null ? JSON.stringify(body) : undefined
+  });
+  const txt = await res.text(); let json=null; try{ json = txt ? JSON.parse(txt) : null; }catch(e){}
+  if(!res.ok){ console.error(method, path, res.status, txt); const e=new Error((json&&json.message)||('HTTP '+res.status)); e.status=res.status; e.body=txt; throw e; }
+  return json;
+}
+const get   = (p)=>api('GET',p,null,false);
+const post  = (p,b)=>api('POST',p,b,true);
+const patch = (p,b)=>api('PATCH',p,b,true);
+const del   = (p)=>api('DELETE',p,null,true);
+
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function toast(msg,kind){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show '+(kind||'');setTimeout(()=>t.className='toast',3200);}
+function fmtDt(iso){ if(!iso) return '—'; const d=new Date(iso); return d.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}); }
+function fmtD(iso){ if(!iso) return '—'; return new Date(iso).toLocaleDateString('pt-BR'); }
+function toISO(local){ return local ? new Date(local).toISOString() : null; }
+function toLocalInput(iso){ if(!iso) return ''; const d=new Date(iso); const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; }
+function inVal(id){ return (document.getElementById(id)||{}).value||''; }
+
+// ── Modal ──
+const modal=document.getElementById('modal'), modalBox=document.getElementById('modal-box');
+function openModal(html,wide){ modalBox.className='box'+(wide?' wide':''); modalBox.innerHTML=html; modal.classList.add('open'); }
+function closeModal(){ modal.classList.remove('open'); }
+modal.addEventListener('click',e=>{ if(e.target===modal) closeModal(); });
+
+// ── Tema ──
+function aplicarTema(){ const t=localStorage.getItem('upseller_tema'); if(t==='light'){document.documentElement.setAttribute('data-theme','light');document.getElementById('btn-tema').textContent='☀️';} else {document.documentElement.removeAttribute('data-theme');document.getElementById('btn-tema').textContent='🌙';} }
+document.getElementById('btn-tema').onclick=()=>{ const l=document.documentElement.getAttribute('data-theme')==='light'; localStorage.setItem('upseller_tema', l?'dark':'light'); aplicarTema(); };
+
+// ══════════════════════════════════════════════════════════
+// Sessão / papéis
+// ══════════════════════════════════════════════════════════
+let U = null; // usuário logado
+function papel(){ if(!U) return null; if(U.is_super_gestor) return 'super'; if(U.is_gestor) return 'gestor'; return 'colab'; }
+function salvarSessao(u){ try{localStorage.setItem('aval_sessao',JSON.stringify(u));}catch(e){} }
+function lerSessao(){ try{return JSON.parse(localStorage.getItem('aval_sessao')||'null');}catch(e){return null;} }
+
+async function fazerLogin(){
+  const email=inVal('lg-email').trim().toLowerCase(), senha=inVal('lg-senha').trim();
+  const msg=document.getElementById('lg-msg'); msg.textContent='';
+  if(!email||!senha){ msg.textContent='Preencha e-mail e senha.'; return; }
+  const btn=document.getElementById('lg-btn'); btn.disabled=true; btn.textContent='Entrando…';
+  try{
+    const r=await get(`colaboradores?email=eq.${encodeURIComponent(email)}&senha=eq.${encodeURIComponent(senha)}&select=id,nome,apelido,email,ativo,is_gestor,is_super_gestor&limit=1`);
+    if(!r||!r.length){ msg.textContent='E-mail ou senha incorretos.'; return; }
+    if(r[0].ativo===false){ msg.textContent='Conta inativa.'; return; }
+    U=r[0]; salvarSessao(U); iniciarApp();
+  }catch(e){ msg.textContent='Erro ao entrar: '+e.message; }
+  finally{ btn.disabled=false; btn.textContent='Entrar'; }
+}
+document.getElementById('lg-btn').onclick=fazerLogin;
+document.getElementById('lg-senha').addEventListener('keydown',e=>{ if(e.key==='Enter') fazerLogin(); });
+document.getElementById('btn-sair').onclick=()=>{ localStorage.removeItem('aval_sessao'); location.reload(); };
+
+// ══════════════════════════════════════════════════════════
+// Navegação
+// ══════════════════════════════════════════════════════════
+const NAV = {
+  colab:  [['minhas','📋 Minhas avaliações'],['desempenho','📈 Meu desempenho']],
+  gestor: [['minhas','📋 Minhas avaliações'],['desempenho','📈 Meu desempenho'],['correcao','✍️ Correção'],['metricas','📊 Métricas']],
+  super:  [['avaliacoes','🗂️ Avaliações'],['banco','🏦 Banco de questões'],['importar','📥 Importar planilha'],['correcao','✍️ Correção'],['metricas','📊 Métricas']],
+};
+let abaAtual=null;
+function renderTabs(){
+  const tabs=NAV[papel()]||NAV.colab;
+  if(!abaAtual) abaAtual=tabs[0][0];
+  document.getElementById('tabs').innerHTML = tabs.map(([k,l])=>`<div class="tab ${k===abaAtual?'active':''}" data-k="${k}">${l}</div>`).join('');
+  document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{ abaAtual=t.dataset.k; renderTabs(); abrirAba(); });
+}
+function abrirAba(){
+  const v=document.getElementById('view'); v.innerHTML='<div class="spin"></div>';
+  ({ minhas:viewMinhas, desempenho:viewDesempenho, avaliacoes:viewAvaliacoes, banco:viewBanco,
+     importar:viewImportar, correcao:viewCorrecao, metricas:viewMetricas }[abaAtual] || viewMinhas)();
+}
+function iniciarApp(){
+  document.getElementById('login').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('hd-user').textContent = (U.apelido||U.nome) + ({super:' · super gestor',gestor:' · gestor',colab:''}[papel()]);
+  document.getElementById('hd-sub').textContent = {super:'Acesso total ao módulo',gestor:'Correção e métricas da equipe',colab:'Suas avaliações e desempenho'}[papel()];
+  renderTabs(); abrirAba();
+}
+
+// ══════════════════════════════════════════════════════════
+// Utilidades de domínio
+// ══════════════════════════════════════════════════════════
+function pesoDe(linkRow, questao){ return (linkRow.peso!=null?linkRow.peso:(questao?questao.peso:1)) || 0; }
+function statusBadge(st){
+  return ({rascunho:'<span class="badge b-grey">Rascunho</span>',
+           disponivel:'<span class="badge b-green">Disponível</span>',
+           encerrada:'<span class="badge b-grey">Encerrada</span>',
+           em_andamento:'<span class="badge b-amber">Em andamento</span>',
+           enviada:'<span class="badge b-blue">Aguardando correção</span>',
+           corrigida:'<span class="badge b-blue">Corrigida</span>',
+           publicada:'<span class="badge b-green">Resultado liberado</span>'}[st]||`<span class="badge b-grey">${esc(st)}</span>`);
+}
+function dentroJanela(a){
+  const now=Date.now();
+  if(a.inicio && new Date(a.inicio).getTime()>now) return false;
+  if(a.fim    && new Date(a.fim).getTime()<now)    return false;
+  return true;
+}
+async function carregarQuestoesDaAvaliacao(avalId){
+  const links=await get(`avaliacao_questoes?avaliacao_id=eq.${avalId}&select=id,questao_id,ordem,peso&order=ordem.asc`);
+  if(!links.length) return [];
+  const ids=links.map(l=>l.questao_id);
+  const qs=await get(`aval_questoes?id=in.(${ids.join(',')})&select=*`);
+  const map={}; qs.forEach(q=>map[q.id]=q);
+  return links.map(l=>({link:l, q:map[l.questao_id]})).filter(x=>x.q);
+}
+
+// ══════════════════════════════════════════════════════════
+// COLABORADOR — Minhas avaliações
+// ══════════════════════════════════════════════════════════
+async function viewMinhas(){
+  const v=document.getElementById('view');
+  try{
+    const dest=await get(`avaliacao_destinatarios?colaborador_id=eq.${U.id}&select=avaliacao_id`);
+    const tent=await get(`avaliacao_tentativas?colaborador_id=eq.${U.id}&select=*`);
+    const tByAval={}; tent.forEach(t=>tByAval[t.avaliacao_id]=t);
+    let avals=[];
+    if(dest.length){
+      const ids=dest.map(d=>d.avaliacao_id);
+      avals=await get(`avaliacoes?id=in.(${ids.join(',')})&select=*&order=created_at.desc`);
+    }
+    if(!avals.length){ v.innerHTML=`<div class="card center muted">Nenhuma avaliação destinada a você por enquanto.</div>`; return; }
+    v.innerHTML = `<div class="grid c2">`+avals.map(a=>{
+      const t=tByAval[a.id]; let acao='', info='';
+      if(t){
+        if(t.status==='em_andamento' && a.status==='disponivel' && dentroJanela(a)){ acao=`<button class="btn primary sm" onclick="responder('${a.id}')">Continuar</button>`; info=statusBadge('em_andamento'); }
+        else if(t.status==='publicada'){ acao=`<button class="btn green sm" onclick="verResultado('${t.id}')">Ver resultado</button>`; info=statusBadge('publicada'); }
+        else { info=statusBadge(t.status==='em_andamento'?'enviada':t.status); acao=`<span class="muted" style="font-size:12px">Enviada em ${fmtDt(t.enviado_em)}</span>`; }
+      } else {
+        if(a.status==='disponivel' && dentroJanela(a)){ acao=`<button class="btn primary sm" onclick="iniciar('${a.id}')">Iniciar avaliação</button>`; info=statusBadge('disponivel'); }
+        else { info=statusBadge(a.status==='disponivel'?'encerrada':a.status); acao=`<span class="muted" style="font-size:12px">Indisponível</span>`; }
+      }
+      const janela = (a.inicio||a.fim) ? `<div class="muted" style="font-size:11px;margin-top:6px">⏱️ ${a.inicio?fmtDt(a.inicio):'—'} → ${a.fim?fmtDt(a.fim):'sem prazo'}</div>` : '';
+      return `<div class="card"><div style="display:flex;justify-content:space-between;gap:8px;align-items:start">
+        <h2>${esc(a.titulo)}</h2>${info}</div>
+        <div class="muted" style="margin:6px 0">${esc(a.descricao||'')}</div>
+        ${janela}
+        <div style="margin-top:12px">${acao}</div></div>`;
+    }).join('')+`</div>`;
+  }catch(e){ v.innerHTML=`<div class="card" style="color:var(--red)">Erro: ${esc(e.message)}</div>`; }
+}
+
+async function iniciar(avalId){
+  try{
+    // trava: já existe tentativa?
+    const ex=await get(`avaliacao_tentativas?avaliacao_id=eq.${avalId}&colaborador_id=eq.${U.id}&select=id,status&limit=1`);
+    if(ex.length){ if(ex[0].status!=='em_andamento'){ toast('Você já realizou esta avaliação.','err'); viewMinhas(); return; } }
+    else { await post('avaliacao_tentativas',{avaliacao_id:avalId,colaborador_id:U.id,status:'em_andamento'}); }
+    responder(avalId);
+  }catch(e){
+    if(e.status===409){ toast('Você já realizou esta avaliação.','err'); viewMinhas(); }
+    else toast('Erro ao iniciar: '+e.message,'err');
+  }
+}
+
+let _respAtual=null; // {aval, tentativa, itens:[{link,q}], respostas:{questaoId:valor}}
+async function responder(avalId){
+  const v=document.getElementById('view'); v.innerHTML='<div class="spin"></div>';
+  try{
+    const aval=(await get(`avaliacoes?id=eq.${avalId}&select=*&limit=1`))[0];
+    if(!aval||aval.status!=='disponivel'||!dentroJanela(aval)){ toast('Avaliação indisponível.','err'); viewMinhas(); return; }
+    const tent=(await get(`avaliacao_tentativas?avaliacao_id=eq.${avalId}&colaborador_id=eq.${U.id}&select=*&limit=1`))[0];
+    if(!tent||tent.status!=='em_andamento'){ toast('Você já enviou esta avaliação.','err'); viewMinhas(); return; }
+    let itens=await carregarQuestoesDaAvaliacao(avalId);
+    if(aval.embaralhar) itens=itens.sort(()=>Math.random()-0.5);
+    _respAtual={aval,tentativa:tent,itens,respostas:{}};
+    renderResponder();
+  }catch(e){ v.innerHTML=`<div class="card" style="color:var(--red)">Erro: ${esc(e.message)}</div>`; }
+}
+function renderResponder(){
+  const {aval,itens,respostas}=_respAtual;
+  const v=document.getElementById('view');
+  v.innerHTML=`<div class="card"><h2>${esc(aval.titulo)}</h2><div class="muted">${esc(aval.descricao||'')}</div>
+    <div class="muted" style="margin-top:6px;font-size:12px">⚠️ Você tem apenas <b>uma tentativa</b>. Responda tudo e clique em Enviar.</div></div>
+    <div id="resp-qs">`+itens.map((it,i)=>{
+      const q=it.q; const pts=pesoDe(it.link,q);
+      let body='';
+      if(q.tipo==='objetiva'){
+        const alts=q.alternativas||{};
+        body=Object.keys(alts).filter(k=>alts[k]!=null&&alts[k]!=='').map(k=>
+          `<div class="opt" data-q="${q.id}" data-k="${k}" onclick="marcarOpcao('${q.id}','${k}')"><div class="k">${k}</div><div>${esc(alts[k])}</div></div>`).join('');
+      } else {
+        body=`<textarea data-q="${q.id}" placeholder="Digite sua resposta…" oninput="respDiss('${q.id}',this.value)"></textarea>`;
+      }
+      return `<div class="q"><div class="enun">${i+1}. ${esc(q.enunciado)} <span class="muted" style="font-weight:400">(${pts} pt${pts>1?'s':''})</span></div>${body}</div>`;
+    }).join('')+`</div>
+    <button class="btn green" onclick="enviarAvaliacao()">✅ Enviar avaliação</button>
+    <button class="btn ghost" onclick="viewMinhas()">Voltar</button>`;
+}
+function marcarOpcao(qid,k){
+  _respAtual.respostas[qid]=k;
+  document.querySelectorAll(`.opt[data-q="${qid}"]`).forEach(o=>o.classList.toggle('sel',o.dataset.k===k));
+}
+function respDiss(qid,val){ _respAtual.respostas[qid]=val; }
+
+async function enviarAvaliacao(){
+  const {aval,tentativa,itens,respostas}=_respAtual;
+  const faltando=itens.filter(it=> !respostas[it.q.id] || String(respostas[it.q.id]).trim()==='');
+  if(faltando.length){ if(!confirm(`${faltando.length} questão(ões) sem resposta. Enviar mesmo assim? (não dá para refazer)`)) return; }
+  else if(!confirm('Enviar a avaliação? Você não poderá refazer.')) return;
+  try{
+    let nota=0, notaMax=0;
+    const rows=itens.map(it=>{
+      const q=it.q, pmax=pesoDe(it.link,q); notaMax+=pmax;
+      const r=respostas[q.id]||null;
+      let correta=null, pontos=null;
+      if(q.tipo==='objetiva'){ correta = (r && q.resposta_correta && r===q.resposta_correta); pontos = correta?pmax:0; nota+=pontos; }
+      return {tentativa_id:tentativa.id, questao_id:q.id, resposta:r, correta, pontos, pontos_max:pmax, feedback:null};
+    });
+    await post('avaliacao_respostas', rows);
+    const temDiss=itens.some(it=>it.q.tipo==='dissertativa');
+    await patch(`avaliacao_tentativas?id=eq.${tentativa.id}`, {
+      status:'enviada', enviado_em:new Date().toISOString(),
+      nota, nota_max:notaMax, percentual: notaMax? Math.round(nota/notaMax*100):0
+    });
+    toast(temDiss?'Enviada! Aguardando correção do gestor.':'Enviada! Aguardando liberação do resultado.','ok');
+    abaAtual='minhas'; renderTabs(); viewMinhas();
+  }catch(e){ toast('Erro ao enviar: '+e.message,'err'); }
+}
+
+async function verResultado(tentId){
+  const v=document.getElementById('view'); v.innerHTML='<div class="spin"></div>';
+  try{
+    const t=(await get(`avaliacao_tentativas?id=eq.${tentId}&select=*&limit=1`))[0];
+    const aval=(await get(`avaliacoes?id=eq.${t.avaliacao_id}&select=*&limit=1`))[0];
+    const resp=await get(`avaliacao_respostas?tentativa_id=eq.${tentId}&select=*`);
+    const qids=resp.map(r=>r.questao_id);
+    const qs=qids.length? await get(`aval_questoes?id=in.(${qids.join(',')})&select=*`):[];
+    const qmap={}; qs.forEach(q=>qmap[q.id]=q);
+    const pct=t.percentual||0; const aprovado=t.aprovado;
+    v.innerHTML=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <div><h2>${esc(aval.titulo)}</h2><div class="muted">Resultado liberado</div></div>
+        <div class="center"><div style="font-size:30px;font-weight:800;color:${aprovado?'var(--green)':'var(--red)'}">${pct}%</div>
+        ${aprovado!=null?`<span class="badge ${aprovado?'b-green':'b-red'}">${aprovado?'Aprovado':'Reprovado'}</span>`:''}</div>
+      </div>
+      <div class="muted" style="margin-top:8px">Nota: ${t.nota??'—'} / ${t.nota_max??'—'} · Corte: ${aval.nota_corte}%</div></div>`
+      + resp.map((r,i)=>{
+        const q=qmap[r.questao_id]||{}; const ok=r.correta;
+        let body='';
+        if(q.tipo==='objetiva'){
+          const alts=q.alternativas||{};
+          body=Object.keys(alts).filter(k=>alts[k]).map(k=>{
+            let cls=''; if(k===q.resposta_correta) cls='ok'; else if(k===r.resposta && k!==q.resposta_correta) cls='err';
+            return `<div class="opt ${cls}"><div class="k">${k}</div><div>${esc(alts[k])}</div></div>`;
+          }).join('');
+        } else {
+          body=`<div class="muted" style="font-size:12px">Sua resposta:</div><div class="q" style="margin:4px 0">${esc(r.resposta||'—')}</div>
+                ${r.feedback?`<div class="muted" style="font-size:12px">Comentário do corretor:</div><div class="q" style="margin:4px 0">${esc(r.feedback)}</div>`:''}`;
+        }
+        return `<div class="q"><div class="enun">${i+1}. ${esc(q.enunciado||'')}
+          <span class="badge ${ok?'b-green':(ok===false?'b-red':'b-grey')}" style="float:right">${r.pontos??0}/${r.pontos_max??0} pt</span></div>
+          ${body}
+          ${q.explicacao?`<div class="muted" style="font-size:12px;margin-top:6px">💡 ${esc(q.explicacao)}</div>`:''}</div>`;
+      }).join('')
+      + `<button class="btn ghost" onclick="viewMinhas()">Voltar</button>`;
+  }catch(e){ v.innerHTML=`<div class="card" style="color:var(--red)">Erro: ${esc(e.message)}</div>`; }
+}
+
+// ══════════════════════════════════════════════════════════
+// COLABORADOR — Meu desempenho
+// ══════════════════════════════════════════════════════════
+async function viewDesempenho(){
+  const v=document.getElementById('view');
+  try{
+    const tent=await get(`avaliacao_tentativas?colaborador_id=eq.${U.id}&status=eq.publicada&select=*&order=corrigido_em.asc`);
+    if(!tent.length){ v.innerHTML=`<div class="card center muted">Você ainda não tem resultados liberados.</div>`; return; }
+    const avIds=[...new Set(tent.map(t=>t.avaliacao_id))];
+    const avs=await get(`avaliacoes?id=in.(${avIds.join(',')})&select=id,titulo`); const am={}; avs.forEach(a=>am[a.id]=a.titulo);
+    const media=Math.round(tent.reduce((s,t)=>s+(t.percentual||0),0)/tent.length);
+    const aprov=tent.filter(t=>t.aprovado).length;
+    v.innerHTML=`<div class="grid c3" style="margin-bottom:14px">
+        <div class="kpi"><div class="n">${tent.length}</div><div class="l">Provas realizadas</div></div>
+        <div class="kpi"><div class="n">${media}%</div><div class="l">Média geral</div></div>
+        <div class="kpi"><div class="n">${aprov}/${tent.length}</div><div class="l">Aprovações</div></div>
+      </div>
+      <div class="card"><h2>Evolução</h2><div style="margin-top:10px">`+
+      tent.map(t=>{
+        const pct=t.percentual||0;
+        return `<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+          <span>${esc(am[t.avaliacao_id]||'—')} <span class="muted">${fmtD(t.corrigido_em)}</span></span>
+          <span style="color:${t.aprovado?'var(--green)':'var(--red)'}">${pct}%</span></div>
+          <div class="bar"><span style="width:${pct}%;background:${t.aprovado?'var(--green)':'var(--red)'}"></span></div></div>`;
+      }).join('')+`</div></div>`;
+  }catch(e){ v.innerHTML=`<div class="card" style="color:var(--red)">Erro: ${esc(e.message)}</div>`; }
+}
+
+// ══════════════════════════════════════════════════════════
+// SUPER GESTOR — Banco de questões + Categorias
+// ══════════════════════════════════════════════════════════
+let _cats=[], _qs=[];
+async function viewBanco(){
+  const v=document.getElementById('view');
+  try{
+    _cats=await get('aval_categorias?select=*&order=nome.asc');
+    _qs=await get('aval_questoes?select=*&order=created_at.desc');
+    const catMap={}; _cats.forEach(c=>catMap[c.id]=c.nome);
+    v.innerHTML=`
+      <div class="card"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div><h2>Banco de questões</h2><div class="muted">${_qs.length} questão(ões) · ${_cats.length} categoria(s)</div></div>
+        <div class="row" style="flex:0">
+          <button class="btn primary sm" onclick="modalQuestao()">➕ Nova questão</button>
+          <button class="btn ghost sm" onclick="modalCategorias()">🏷️ Categorias</button>
+        </div></div>
+        <div class="row" style="margin-top:12px">
+          <input id="bq-busca" placeholder="Buscar no enunciado…" oninput="filtrarBanco()">
+          <select id="bq-cat" onchange="filtrarBanco()"><option value="">Todas as categorias</option>${_cats.map(c=>`<option value="${c.id}">${esc(c.nome)}</option>`).join('')}</select>
+          <select id="bq-tipo" onchange="filtrarBanco()"><option value="">Todos os tipos</option><option value="objetiva">Objetiva</option><option value="dissertativa">Dissertativa</option></select>
+        </div>
+      </div>
+      <div class="card" style="padding:4px 0"><div id="bq-lista"></div></div>`;
+    filtrarBanco();
+  }catch(e){ v.innerHTML=`<div class="card" style="color:var(--red)">Erro: ${esc(e.message)}. Rodou o SQL_avaliacoes.sql?</div>`; }
+}
+function filtrarBanco(){
+  const q=(inVal('bq-busca')||'').toLowerCase(), cat=inVal('bq-cat'), tipo=inVal('bq-tipo');
+  const catMap={}; _cats.forEach(c=>catMap[c.id]=c.nome);
+  const lista=_qs.filter(x=>(!q||x.enunciado.toLowerCase().includes(q))&&(!cat||x.categoria_id===cat)&&(!tipo||x.tipo===tipo));
+  const el=document.getElementById('bq-lista');
+  if(!lista.length){ el.innerHTML=`<div class="center muted" style="padding:20px">Nenhuma questão.</div>`; return; }
+  el.innerHTML=`<table><thead><tr><th>Enunciado</th><th>Categoria</th><th>Tipo</th><th>Peso</th><th></th></tr></thead><tbody>`+
+    lista.map(x=>`<tr>
+      <td>${esc(x.enunciado.slice(0,80))}${x.enunciado.length>80?'…':''}</td>
+      <td class="muted">${esc(catMap[x.categoria_id]||'—')}</td>
+      <td>${x.tipo==='objetiva'?'<span class="badge b-blue">Objetiva</span>':'<span class="badge b-amber">Dissertativa</span>'}</td>
+      <td>${x.peso}</td>
+      <td style="white-space:nowrap"><button class="btn ghost sm" onclick="modalQuestao('${x.id}')">✏️</button>
+      <button class="btn ghost sm" onclick="excluirQuestao('${x.id}')">🗑️</button></td></tr>`).join('')+`</tbody></table>`;
+}
+function modalQuestao(id){
+  const q = id? _qs.find(x=>x.id===id) : {tipo:'objetiva',peso:1,alternativas:{}};
+  const alts=q.alternativas||{};
+  openModal(`<h2>${id?'Editar':'Nova'} questão</h2>
+    <label>Enunciado</label><textarea id="q-enun">${esc(q.enunciado||'')}</textarea>
+    <div class="row">
+      <div><label>Categoria</label><select id="q-cat"><option value="">—</option>${_cats.map(c=>`<option value="${c.id}" ${c.id===q.categoria_id?'selected':''}>${esc(c.nome)}</option>`).join('')}</select></div>
+      <div><label>Tipo</label><select id="q-tipo" onchange="toggleAlts()"><option value="objetiva" ${q.tipo==='objetiva'?'selected':''}>Objetiva</option><option value="dissertativa" ${q.tipo==='dissertativa'?'selected':''}>Dissertativa</option></select></div>
+      <div><label>Peso (pontos)</label><input id="q-peso" type="number" step="0.5" min="0" value="${q.peso??1}"></div>
+    </div>
+    <div id="q-alts">
+      ${['A','B','C','D','E'].map(k=>`<div class="row" style="align-items:center"><div style="flex:0;min-width:24px;font-weight:700">${k}</div><input class="q-alt" data-k="${k}" value="${esc(alts[k]||'')}" placeholder="Alternativa ${k} (vazio = não usar)"></div>`).join('')}
+      <label>Resposta correta</label><select id="q-resp"><option value="">—</option>${['A','B','C','D','E'].map(k=>`<option value="${k}" ${q.resposta_correta===k?'selected':''}>${k}</option>`).join('')}</select>
+    </div>
+    <label>Explicação (opcional, aparece após a correção)</label><textarea id="q-exp">${esc(q.explicacao||'')}</textarea>
+    <div style="margin-top:14px"><button class="btn primary" onclick="salvarQuestao('${id||''}')">Salvar</button>
+    <button class="btn ghost" onclick="closeModal()">Cancelar</button></div>`, true);
+  toggleAlts();
+}
+function toggleAlts(){ document.getElementById('q-alts').style.display = inVal('q-tipo')==='dissertativa'?'none':'block'; }
+async function salvarQuestao(id){
+  const tipo=inVal('q-tipo'); const enun=inVal('q-enun').trim();
+  if(!enun){ toast('Preencha o enunciado.','err'); return; }
+  const alts={}; document.querySelectorAll('.q-alt').forEach(i=>{ if(i.value.trim()) alts[i.dataset.k]=i.value.trim(); });
+  let resp=inVal('q-resp')||null;
+  if(tipo==='objetiva'){
+    if(Object.keys(alts).length<2){ toast('Objetiva precisa de pelo menos 2 alternativas.','err'); return; }
+    if(!resp||!alts[resp]){ toast('Escolha a resposta correta (entre as alternativas preenchidas).','err'); return; }
+  } else { resp=null; }
+  const body={ enunciado:enun, tipo, categoria_id:inVal('q-cat')||null, peso:parseFloat(inVal('q-peso'))||1,
+    alternativas: tipo==='objetiva'?alts:null, resposta_correta:resp, explicacao:inVal('q-exp').trim()||null };
+  try{
+    if(id){ await patch(`aval_questoes?id=eq.${id}`, body); } else { body.criado_por=U.id; await post('aval_questoes', body); }
+    closeModal(); toast('Questão salva.','ok'); viewBanco();
+  }catch(e){ toast('Erro: '+e.message,'err'); }
+}
+async function excluirQuestao(id){
+  if(!confirm('Excluir esta questão do banco?')) return;
+  try{ await del(`aval_questoes?id=eq.${id}`); toast('Excluída.','ok'); viewBanco(); }
+  catch(e){ toast('Erro (pode estar em uso numa avaliação): '+e.message,'err'); }
+}
+function modalCategorias(){
+  openModal(`<h2>Categorias (assuntos)</h2>
+    <div class="row"><input id="cat-nome" placeholder="Nova categoria (ex.: Produto)"><button class="btn primary" style="flex:0" onclick="addCategoria()">Adicionar</button></div>
+    <div id="cat-lista" style="margin-top:12px">${_cats.map(c=>`<div class="chk"><span style="flex:1">${esc(c.nome)}</span><button class="btn ghost sm" onclick="delCategoria('${c.id}')">🗑️</button></div>`).join('')||'<div class="muted">Nenhuma ainda.</div>'}</div>
+    <div style="margin-top:14px"><button class="btn ghost" onclick="closeModal()">Fechar</button></div>`);
+}
+async function addCategoria(){
+  const n=inVal('cat-nome').trim(); if(!n) return;
+  try{ await post('aval_categorias',{nome:n}); _cats=await get('aval_categorias?select=*&order=nome.asc'); modalCategorias(); }
+  catch(e){ toast('Erro (categoria já existe?): '+e.message,'err'); }
+}
+async function delCategoria(id){
+  try{ await del(`aval_categorias?id=eq.${id}`); _cats=await get('aval_categorias?select=*&order=nome.asc'); modalCategorias(); }
+  catch(e){ toast('Erro: '+e.message,'err'); }
+}
+
+// ══════════════════════════════════════════════════════════
+// SUPER GESTOR — Importar planilha
+// ══════════════════════════════════════════════════════════
+let _importRows=[];
+async function viewImportar(){
+  const v=document.getElementById('view');
+  v.innerHTML=`<div class="card"><h2>Importar questões por planilha</h2>
+    <div class="muted" style="margin:6px 0 12px">Baixe o modelo, preencha e envie. Colunas: <b>categoria, enunciado, tipo, alternativa_a..e, resposta_correta, peso, explicacao</b>.</div>
+    <div class="row" style="flex:0;gap:8px">
+      <button class="btn ghost" onclick="baixarModelo()">⬇️ Baixar modelo (.xlsx)</button>
+      <label class="btn primary" style="flex:0;cursor:pointer;margin:0">📥 Escolher planilha<input type="file" id="imp-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="lerPlanilha(this.files[0])"></label>
+    </div>
+  </div>
+  <div id="imp-preview"></div>`;
+}
+function baixarModelo(){
+  const head=["categoria","enunciado","tipo","alternativa_a","alternativa_b","alternativa_c","alternativa_d","alternativa_e","resposta_correta","peso","explicacao"];
+  const ex=[
+    ["Produto","Qual é o prazo padrão de entrega?","objetiva","24 horas","3 dias úteis","7 dias úteis","15 dias úteis","","C",1,"Prazo padrão: 7 dias úteis."],
+    ["Atendimento","Como você conduziria um cliente insatisfeito?","dissertativa","","","","","","",2,"Avaliar empatia e solução."],
+  ];
+  const ws=XLSX.utils.aoa_to_sheet([head,...ex]);
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Questões");
+  XLSX.writeFile(wb,"modelo_questoes.xlsx");
+}
+function lerPlanilha(file){
+  if(!file) return;
+  const rd=new FileReader();
+  rd.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames.find(n=>/quest/i.test(n))||wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+      _importRows=rows.map((r,idx)=>{
+        const g=(...names)=>{ for(const n of names){ const k=Object.keys(r).find(kk=>kk.toLowerCase().trim()===n); if(k!=null) return String(r[k]).trim(); } return ''; };
+        const tipo=(g('tipo')||'objetiva').toLowerCase().startsWith('diss')?'dissertativa':'objetiva';
+        const alts={}; ['a','b','c','d','e'].forEach(L=>{ const val=g('alternativa_'+L,'alt_'+L,L); if(val) alts[L.toUpperCase()]=val; });
+        const resp=(g('resposta_correta','resposta','correta','gabarito')||'').toUpperCase().slice(0,1);
+        const peso=parseFloat(String(g('peso','pontos')).replace(',','.'))||1;
+        const row={ _linha:idx+2, categoria:g('categoria','assunto'), enunciado:g('enunciado','pergunta','questao','questão'),
+          tipo, alternativas:alts, resposta_correta: tipo==='objetiva'?resp:'', peso, explicacao:g('explicacao','explicação','comentario') };
+        row._erros=[];
+        if(!row.enunciado) row._erros.push('sem enunciado');
+        if(tipo==='objetiva'){ if(Object.keys(alts).length<2) row._erros.push('menos de 2 alternativas'); if(!resp||!alts[resp]) row._erros.push('resposta correta inválida'); }
+        return row;
+      }).filter(r=>r.enunciado||r.categoria);
+      renderPreviewImport();
+    }catch(err){ toast('Erro ao ler planilha: '+err.message,'err'); }
+  };
+  rd.readAsArrayBuffer(file);
+}
+function renderPreviewImport(){
+  const el=document.getElementById('imp-preview');
+  const ok=_importRows.filter(r=>!r._erros.length), bad=_importRows.filter(r=>r._erros.length);
+  el.innerHTML=`<div class="card"><h2>Pré-visualização</h2>
+    <div class="muted" style="margin:6px 0">${ok.length} válida(s) · ${bad.length} com problema(s)</div>
+    <div style="overflow:auto"><table><thead><tr><th>Linha</th><th>Categoria</th><th>Enunciado</th><th>Tipo</th><th>Correta</th><th>Peso</th><th>Status</th></tr></thead><tbody>`+
+    _importRows.map(r=>`<tr>
+      <td>${r._linha}</td><td class="muted">${esc(r.categoria||'—')}</td>
+      <td>${esc((r.enunciado||'').slice(0,60))}${r.enunciado.length>60?'…':''}</td>
+      <td>${r.tipo==='objetiva'?'Obj':'Diss'}</td><td>${esc(r.resposta_correta||'—')}</td><td>${r.peso}</td>
+      <td>${r._erros.length?`<span class="badge b-red">${esc(r._erros.join(', '))}</span>`:'<span class="badge b-green">ok</span>'}</td>
+    </tr>`).join('')+`</tbody></table></div>
+    <div style="margin-top:14px"><button class="btn green" ${ok.length?'':'disabled'} onclick="confirmarImport()">Importar ${ok.length} questão(ões)</button></div></div>`;
+}
+async function confirmarImport(){
+  const ok=_importRows.filter(r=>!r._erros.length); if(!ok.length) return;
+  try{
+    // garante categorias
+    let cats=await get('aval_categorias?select=*');
+    const nomeToId={}; cats.forEach(c=>nomeToId[c.nome.toLowerCase()]=c.id);
+    const novas=[...new Set(ok.map(r=>r.categoria).filter(n=>n&&!nomeToId[n.toLowerCase()]))];
+    for(const n of novas){ const c=await post('aval_categorias',{nome:n}); nomeToId[n.toLowerCase()]=c[0].id; }
+    const payload=ok.map(r=>({ enunciado:r.enunciado, tipo:r.tipo, categoria_id: r.categoria?nomeToId[r.categoria.toLowerCase()]:null,
+      alternativas: r.tipo==='objetiva'?r.alternativas:null, resposta_correta:r.resposta_correta||null,
+      peso:r.peso, explicacao:r.explicacao||null, criado_por:U.id }));
+    await post('aval_questoes', payload);
+    toast(`${payload.length} questão(ões) importada(s)!`,'ok');
+    _importRows=[]; abaAtual='banco'; renderTabs(); viewBanco();
+  }catch(e){ toast('Erro ao importar: '+e.message,'err'); }
+}
+
+// ══════════════════════════════════════════════════════════
+// SUPER GESTOR — Avaliações (criar / disponibilizar / acompanhar)
+// ══════════════════════════════════════════════════════════
+async function viewAvaliacoes(){
+  const v=document.getElementById('view');
+  try{
+    const avals=await get('avaliacoes?select=*&order=created_at.desc');
+    const tent=await get('avaliacao_tentativas?select=avaliacao_id,status');
+    const cont={}; tent.forEach(t=>{ cont[t.avaliacao_id]=cont[t.avaliacao_id]||{tot:0,env:0}; cont[t.avaliacao_id].tot++; if(t.status!=='em_andamento')cont[t.avaliacao_id].env++; });
+    v.innerHTML=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center">
+        <div><h2>Avaliações</h2><div class="muted">${avals.length} no total</div></div>
+        <button class="btn primary" onclick="modalAvaliacao()">➕ Nova avaliação</button></div></div>`
+      + (avals.length? `<div class="grid c2">`+avals.map(a=>{
+        const c=cont[a.id]||{tot:0,env:0};
+        return `<div class="card"><div style="display:flex;justify-content:space-between;gap:8px;align-items:start">
+          <h2>${esc(a.titulo)}</h2>${statusBadge(a.status)}</div>
+          <div class="muted" style="margin:6px 0;font-size:12px">${esc(a.descricao||'')}</div>
+          <div class="muted" style="font-size:12px">Corte ${a.nota_corte}% · Respostas: ${c.env}</div>
+          <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn ghost sm" onclick="modalAvaliacao('${a.id}')">Editar</button>
+            ${a.status==='rascunho'?`<button class="btn green sm" onclick="mudarStatusAval('${a.id}','disponivel')">Disponibilizar</button>`:''}
+            ${a.status==='disponivel'?`<button class="btn amber sm" onclick="mudarStatusAval('${a.id}','encerrada')">Encerrar</button>`:''}
+            ${a.status==='encerrada'?`<button class="btn ghost sm" onclick="mudarStatusAval('${a.id}','disponivel')">Reabrir</button>`:''}
+            <button class="btn ghost sm" onclick="verParticipacao('${a.id}')">Quem fez</button>
+            <button class="btn ghost sm" onclick="excluirAvaliacao('${a.id}')">🗑️</button>
+          </div></div>`;
+      }).join('')+`</div>` : `<div class="card center muted">Nenhuma avaliação. Crie a primeira.</div>`);
+  }catch(e){ v.innerHTML=`<div class="card" style="color:var(--red)">Erro: ${esc(e.message)}. Rodou o SQL_avaliacoes.sql?</div>`; }
+}
+async function modalAvaliacao(id){
+  const [cats,qs,colabs]=await Promise.all([
+    get('aval_categorias?select=*&order=nome.asc'),
+    get('aval_questoes?select=id,enunciado,tipo,peso,categoria_id&order=created_at.desc'),
+    get('colaboradores?select=id,nome,apelido,ativo&order=nome.asc')
+  ]);
+  const catMap={}; cats.forEach(c=>catMap[c.id]=c.nome);
+  let a={titulo:'',descricao:'',nota_corte:70,inicio:'',fim:'',embaralhar:false}, selQ=[], selD=[];
+  if(id){
+    a=(await get(`avaliacoes?id=eq.${id}&select=*&limit=1`))[0];
+    selQ=(await get(`avaliacao_questoes?avaliacao_id=eq.${id}&select=questao_id,peso,ordem&order=ordem.asc`)).map(x=>({id:x.questao_id,peso:x.peso}));
+    selD=(await get(`avaliacao_destinatarios?avaliacao_id=eq.${id}&select=colaborador_id`)).map(x=>x.colaborador_id);
+  }
+  const selQIds=selQ.map(s=>s.id);
+  openModal(`<h2>${id?'Editar':'Nova'} avaliação</h2>
+    <label>Título</label><input id="a-tit" value="${esc(a.titulo)}">
+    <label>Descrição</label><textarea id="a-desc">${esc(a.descricao||'')}</textarea>
+    <div class="row">
+      <div><label>Nota de corte (%)</label><input id="a-corte" type="number" min="0" max="100" value="${a.nota_corte??70}"></div>
+      <div><label>Início (opcional)</label><input id="a-ini" type="datetime-local" value="${toLocalInput(a.inicio)}"></div>
+      <div><label>Fim (opcional)</label><input id="a-fim" type="datetime-local" value="${toLocalInput(a.fim)}"></div>
+    </div>
+    <label class="chk" style="margin-top:10px"><input type="checkbox" id="a-emb" ${a.embaralhar?'checked':''}> Embaralhar ordem das questões</label>
+    <label>Questões (${qs.length} no banco)</label>
+    <div style="max-height:220px;overflow:auto;border:1px solid var(--border);border-radius:9px;padding:8px">
+      ${qs.length? qs.map(q=>`<label class="chk"><input type="checkbox" class="a-q" value="${q.id}" ${selQIds.includes(q.id)?'checked':''}>
+        <span style="flex:1">${esc(q.enunciado.slice(0,70))}${q.enunciado.length>70?'…':''}</span>
+        <span class="badge ${q.tipo==='objetiva'?'b-blue':'b-amber'}">${q.tipo==='objetiva'?'Obj':'Diss'}</span>
+        <span class="muted" style="font-size:11px">${esc(catMap[q.categoria_id]||'')} · ${q.peso}pt</span></label>`).join('')
+        : '<div class="muted">Nenhuma questão no banco. Cadastre ou importe primeiro.</div>'}
+    </div>
+    <label style="margin-top:10px">Destinatários</label>
+    <div style="margin-bottom:6px"><a onclick="document.querySelectorAll('.a-d').forEach(c=>c.checked=true)">marcar todos</a> · <a onclick="document.querySelectorAll('.a-d').forEach(c=>c.checked=false)">limpar</a></div>
+    <div style="max-height:180px;overflow:auto;border:1px solid var(--border);border-radius:9px;padding:8px">
+      ${colabs.filter(c=>c.ativo!==false).map(c=>`<label class="chk"><input type="checkbox" class="a-d" value="${c.id}" ${selD.includes(c.id)?'checked':''}> ${esc(c.apelido||c.nome)}</label>`).join('')}
+    </div>
+    <div style="margin-top:14px"><button class="btn primary" onclick="salvarAvaliacao('${id||''}')">Salvar</button>
+    <button class="btn ghost" onclick="closeModal()">Cancelar</button></div>`, true);
+}
+async function salvarAvaliacao(id){
+  const titulo=inVal('a-tit').trim(); if(!titulo){ toast('Dê um título.','err'); return; }
+  const qs=[...document.querySelectorAll('.a-q:checked')].map(c=>c.value);
+  const ds=[...document.querySelectorAll('.a-d:checked')].map(c=>c.value);
+  if(!qs.length){ toast('Selecione pelo menos uma questão.','err'); return; }
+  if(!ds.length){ toast('Selecione pelo menos um destinatário.','err'); return; }
+  const body={ titulo, descricao:inVal('a-desc').trim()||null, nota_corte:parseFloat(inVal('a-corte'))||70,
+    inicio:toISO(inVal('a-ini')), fim:toISO(inVal('a-fim')), embaralhar:document.getElementById('a-emb').checked };
+  try{
+    let avalId=id;
+    if(id){ await patch(`avaliacoes?id=eq.${id}`, body); }
+    else { body.criado_por=U.id; body.status='rascunho'; avalId=(await post('avaliacoes', body))[0].id; }
+    // regrava questões e destinatários (simples: apaga e insere)
+    await del(`avaliacao_questoes?avaliacao_id=eq.${avalId}`);
+    await post('avaliacao_questoes', qs.map((qid,i)=>({avaliacao_id:avalId,questao_id:qid,ordem:i})));
+    await del(`avaliacao_destinatarios?avaliacao_id=eq.${avalId}`);
+    await post('avaliacao_destinatarios', ds.map(cid=>({avaliacao_id:avalId,colaborador_id:cid})));
+    closeModal(); toast('Avaliação salva.','ok'); viewAvaliacoes();
+  }catch(e){ toast('Erro: '+e.message,'err'); }
+}
+async function mudarStatusAval(id,st){
+  if(st==='disponivel' && !confirm('Disponibilizar para os colaboradores agora?')) return;
+  try{ await patch(`avaliacoes?id=eq.${id}`,{status:st}); toast('Status atualizado.','ok'); viewAvaliacoes(); }
+  catch(e){ toast('Erro: '+e.message,'err'); }
+}
+async function excluirAvaliacao(id){
+  if(!confirm('Excluir esta avaliação e todas as respostas dela? Não pode ser desfeito.')) return;
+  try{ await del(`avaliacoes?id=eq.${id}`); toast('Excluída.','ok'); viewAvaliacoes(); }
+  catch(e){ toast('Erro: '+e.message,'err'); }
+}
+async function verParticipacao(id){
+  const [aval,dests,tents]=await Promise.all([
+    get(`avaliacoes?id=eq.${id}&select=titulo&limit=1`),
+    get(`avaliacao_destinatarios?avaliacao_id=eq.${id}&select=colaborador_id`),
+    get(`avaliacao_tentativas?avaliacao_id=eq.${id}&select=*`)
+  ]);
+  const cids=dests.map(d=>d.colaborador_id);
+  const colabs=cids.length? await get(`colaboradores?id=in.(${cids.join(',')})&select=id,nome,apelido`):[];
+  const tByC={}; tents.forEach(t=>tByC[t.colaborador_id]=t);
+  openModal(`<h2>Quem fez — ${esc(aval[0].titulo)}</h2>
+    <table><thead><tr><th>Colaborador</th><th>Status</th><th>Nota</th></tr></thead><tbody>`+
+    colabs.map(c=>{ const t=tByC[c.id];
+      return `<tr><td>${esc(c.apelido||c.nome)}</td>
+        <td>${t?statusBadge(t.status==='em_andamento'?'em_andamento':t.status):'<span class="badge b-grey">Não iniciou</span>'}</td>
+        <td>${t&&t.percentual!=null?t.percentual+'%':'—'}</td></tr>`;
+    }).join('')+`</tbody></table>
+    <div style="margin-top:14px"><button class="btn ghost" onclick="closeModal()">Fechar</button></div>`, true);
+}
+
+// ══════════════════════════════════════════════════════════
+// CORREÇÃO (gestor / super)
+// ══════════════════════════════════════════════════════════
+async function viewCorrecao(){
+  const v=document.getElementById('view');
+  try{
+    const tents=await get(`avaliacao_tentativas?status=in.(enviada,corrigida)&select=*&order=enviado_em.asc`);
+    if(!tents.length){ v.innerHTML=`<div class="card center muted">Nada para corrigir no momento. 🎉</div>`; return; }
+    const avIds=[...new Set(tents.map(t=>t.avaliacao_id))], cIds=[...new Set(tents.map(t=>t.colaborador_id))];
+    const [avs,colabs]=await Promise.all([
+      get(`avaliacoes?id=in.(${avIds.join(',')})&select=id,titulo,nota_corte`),
+      get(`colaboradores?id=in.(${cIds.join(',')})&select=id,nome,apelido`)
+    ]);
+    const am={}; avs.forEach(a=>am[a.id]=a); const cm={}; colabs.forEach(c=>cm[c.id]=c.apelido||c.nome);
+    v.innerHTML=`<div class="card"><h2>Correção</h2><div class="muted">${tents.length} aguardando</div></div>
+      <div class="card" style="padding:4px 0"><table><thead><tr><th>Colaborador</th><th>Avaliação</th><th>Enviada</th><th>Status</th><th></th></tr></thead><tbody>`+
+      tents.map(t=>`<tr><td>${esc(cm[t.colaborador_id]||'—')}</td><td>${esc((am[t.avaliacao_id]||{}).titulo||'—')}</td>
+        <td class="muted">${fmtDt(t.enviado_em)}</td><td>${statusBadge(t.status)}</td>
+        <td><button class="btn primary sm" onclick="corrigir('${t.id}')">Corrigir</button></td></tr>`).join('')
+      +`</tbody></table></div>`;
+  }catch(e){ v.innerHTML=`<div class="card" style="color:var(--red)">Erro: ${esc(e.message)}</div>`; }
+}
+let _corr=null;
+async function corrigir(tentId){
+  const v=document.getElementById('view'); v.innerHTML='<div class="spin"></div>';
+  try{
+    const t=(await get(`avaliacao_tentativas?id=eq.${tentId}&select=*&limit=1`))[0];
+    const aval=(await get(`avaliacoes?id=eq.${t.avaliacao_id}&select=*&limit=1`))[0];
+    const colab=(await get(`colaboradores?id=eq.${t.colaborador_id}&select=nome,apelido&limit=1`))[0];
+    const resp=await get(`avaliacao_respostas?tentativa_id=eq.${tentId}&select=*`);
+    const qids=resp.map(r=>r.questao_id);
+    const qs=qids.length? await get(`aval_questoes?id=in.(${qids.join(',')})&select=*`):[];
+    const qm={}; qs.forEach(q=>qm[q.id]=q);
+    // ordena pela ordem da avaliação
+    const links=await get(`avaliacao_questoes?avaliacao_id=eq.${t.avaliacao_id}&select=questao_id,ordem&order=ordem.asc`);
+    const ord={}; links.forEach((l,i)=>ord[l.questao_id]=i);
+    resp.sort((a,b)=>(ord[a.questao_id]??99)-(ord[b.questao_id]??99));
+    _corr={t,aval,resp,qm};
+    v.innerHTML=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center">
+        <div><h2>${esc(aval.titulo)}</h2><div class="muted">${esc(colab.apelido||colab.nome)} · enviada ${fmtDt(t.enviado_em)}</div></div>
+        <div class="center"><div class="muted" style="font-size:11px">Nota parcial</div><div id="corr-nota" style="font-size:22px;font-weight:700"></div></div></div></div>`
+      + resp.map((r,i)=>{
+        const q=qm[r.questao_id]||{};
+        if(q.tipo==='objetiva'){
+          const alts=q.alternativas||{};
+          const opts=Object.keys(alts).filter(k=>alts[k]).map(k=>{
+            let cls=''; if(k===q.resposta_correta)cls='ok'; else if(k===r.resposta)cls='err';
+            return `<div class="opt ${cls}"><div class="k">${k}</div><div>${esc(alts[k])}</div></div>`;
+          }).join('');
+          return `<div class="q"><div class="enun">${i+1}. ${esc(q.enunciado)} <span class="badge ${r.correta?'b-green':'b-red'}" style="float:right">${r.correta?'Acertou':'Errou'} · ${r.pontos||0}/${r.pontos_max}pt</span></div>${opts}
+            <div class="muted" style="font-size:12px;margin-top:6px">Correção automática. Para sobrescrever:
+            <select data-corr="${r.id}" data-max="${r.pontos_max}" data-tipo="obj" onchange="recalcCorr()">
+              <option value="auto" selected>Automático (${r.correta?'certo':'errado'})</option>
+              <option value="full">Dar pontos cheios</option><option value="zero">Zerar</option></select></div></div>`;
+        } else {
+          return `<div class="q"><div class="enun">${i+1}. ${esc(q.enunciado)} <span class="muted" style="font-weight:400">(${r.pontos_max}pt)</span></div>
+            <div class="muted" style="font-size:12px">Resposta do colaborador:</div>
+            <div class="q" style="margin:4px 0;background:var(--card)">${esc(r.resposta||'—')}</div>
+            <div class="row"><div style="flex:0;min-width:160px"><label style="margin-top:0">Pontos (0 a ${r.pontos_max})</label>
+            <input type="number" min="0" max="${r.pontos_max}" step="0.5" data-corr="${r.id}" data-max="${r.pontos_max}" data-tipo="diss" value="${r.pontos!=null?r.pontos:''}" oninput="recalcCorr()"></div>
+            <div><label style="margin-top:0">Comentário (opcional)</label><input data-fb="${r.id}" value="${esc(r.feedback||'')}" placeholder="feedback para o colaborador"></div></div></div>`;
+        }
+      }).join('')
+      + `<div class="card"><button class="btn green" onclick="salvarCorrecao(true)">Salvar e publicar resultado</button>
+         <button class="btn primary" onclick="salvarCorrecao(false)">Salvar sem publicar</button>
+         <button class="btn ghost" onclick="viewCorrecao()">Voltar</button></div>`;
+    recalcCorr();
+  }catch(e){ v.innerHTML=`<div class="card" style="color:var(--red)">Erro: ${esc(e.message)}</div>`; }
+}
+function pontosLinha(sel){
+  const max=parseFloat(sel.dataset.max)||0;
+  if(sel.dataset.tipo==='obj'){
+    const r=_corr.resp.find(x=>x.id===sel.dataset.corr);
+    if(sel.value==='full') return max; if(sel.value==='zero') return 0; return r.correta?max:0;
+  } else {
+    let p=parseFloat(sel.value); if(isNaN(p))p=0; return Math.max(0,Math.min(max,p));
+  }
+}
+function recalcCorr(){
+  let nota=0,max=0;
+  document.querySelectorAll('[data-corr]').forEach(sel=>{ nota+=pontosLinha(sel); max+=parseFloat(sel.dataset.max)||0; });
+  const pct=max?Math.round(nota/max*100):0;
+  const el=document.getElementById('corr-nota'); if(el) el.innerHTML=`${pct}% <span class="muted" style="font-size:12px">(${nota}/${max})</span>`;
+}
+async function salvarCorrecao(publicar){
+  const {t,aval,resp}=_corr;
+  try{
+    let nota=0,max=0;
+    for(const sel of document.querySelectorAll('[data-corr]')){
+      const rid=sel.dataset.corr, pmax=parseFloat(sel.dataset.max)||0; const p=pontosLinha(sel);
+      const fbEl=document.querySelector(`[data-fb="${rid}"]`); const fb=fbEl?fbEl.value.trim()||null:undefined;
+      const correta = p>=pmax && pmax>0 ? true : (p<=0 ? false : null);
+      const body={pontos:p, correta}; if(fb!==undefined) body.feedback=fb;
+      await patch(`avaliacao_respostas?id=eq.${rid}`, body);
+      nota+=p; max+=pmax;
+    }
+    const pct=max?Math.round(nota/max*100):0; const aprovado=pct>=(aval.nota_corte||0);
+    await patch(`avaliacao_tentativas?id=eq.${t.id}`, {
+      status: publicar?'publicada':'corrigida', nota, nota_max:max, percentual:pct, aprovado,
+      corrigido_por:U.id, corrigido_em:new Date().toISOString()
+    });
+    await post('aval_auditoria', [{tentativa_id:t.id, acao: publicar?'corrigir+publicar':'corrigir', por:U.id,
+      depois:{nota,nota_max:max,percentual:pct,aprovado}}]);
+    toast(publicar?'Corrigida e publicada! O colaborador já pode ver.':'Correção salva.','ok');
+    viewCorrecao();
+  }catch(e){ toast('Erro ao salvar correção: '+e.message,'err'); }
+}
+
+// ══════════════════════════════════════════════════════════
+// MÉTRICAS (gestor / super)
+// ══════════════════════════════════════════════════════════
+async function viewMetricas(){
+  const v=document.getElementById('view');
+  try{
+    const tents=await get(`avaliacao_tentativas?status=eq.publicada&select=*`);
+    if(!tents.length){ v.innerHTML=`<div class="card center muted">Ainda não há resultados publicados para gerar métricas.</div>`; return; }
+    const avIds=[...new Set(tents.map(t=>t.avaliacao_id))], cIds=[...new Set(tents.map(t=>t.colaborador_id))];
+    const [avs,colabs,resp]=await Promise.all([
+      get(`avaliacoes?id=in.(${avIds.join(',')})&select=id,titulo`),
+      get(`colaboradores?id=in.(${cIds.join(',')})&select=id,nome,apelido`),
+      get(`avaliacao_respostas?tentativa_id=in.(${tents.map(t=>t.id).join(',')})&select=*`)
+    ]);
+    const am={}; avs.forEach(a=>am[a.id]=a.titulo); const cm={}; colabs.forEach(c=>cm[c.id]=c.apelido||c.nome);
+    // por avaliação
+    const porAval={}; tents.forEach(t=>{ (porAval[t.avaliacao_id]=porAval[t.avaliacao_id]||[]).push(t.percentual||0); });
+    // ranking por colaborador
+    const porColab={}; tents.forEach(t=>{ (porColab[t.colaborador_id]=porColab[t.colaborador_id]||[]).push(t.percentual||0); });
+    const ranking=Object.keys(porColab).map(cid=>({nome:cm[cid]||'—',media:Math.round(porColab[cid].reduce((a,b)=>a+b,0)/porColab[cid].length),n:porColab[cid].length})).sort((a,b)=>b.media-a.media);
+    // por questão (dificuldade) + por assunto
+    const qids=[...new Set(resp.map(r=>r.questao_id))];
+    const qs=qids.length? await get(`aval_questoes?id=in.(${qids.join(',')})&select=id,enunciado,categoria_id`):[];
+    const qm={}; qs.forEach(q=>qm[q.id]=q);
+    const catIds=[...new Set(qs.map(q=>q.categoria_id).filter(Boolean))];
+    const cats=catIds.length? await get(`aval_categorias?id=in.(${catIds.join(',')})&select=id,nome`):[];
+    const catNome={}; cats.forEach(c=>catNome[c.id]=c.nome);
+    const porQ={}, porAssunto={};
+    resp.forEach(r=>{
+      if(r.correta==null) return;
+      const q=qm[r.questao_id]; if(!q) return;
+      (porQ[r.questao_id]=porQ[r.questao_id]||{ok:0,n:0,enun:q.enunciado}); porQ[r.questao_id].n++; if(r.correta)porQ[r.questao_id].ok++;
+      const cat=catNome[q.categoria_id]||'Sem categoria';
+      (porAssunto[cat]=porAssunto[cat]||{ok:0,n:0}); porAssunto[cat].n++; if(r.correta)porAssunto[cat].ok++;
+    });
+    const dificeis=Object.values(porQ).map(x=>({enun:x.enun,taxa:Math.round(x.ok/x.n*100),n:x.n})).sort((a,b)=>a.taxa-b.taxa).slice(0,8);
+    const assuntos=Object.keys(porAssunto).map(k=>({nome:k,taxa:Math.round(porAssunto[k].ok/porAssunto[k].n*100),n:porAssunto[k].n})).sort((a,b)=>a.taxa-b.taxa);
+    const mediaGeral=Math.round(tents.reduce((s,t)=>s+(t.percentual||0),0)/tents.length);
+
+    const bars=(arr,label,val,color)=>arr.map(x=>`<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+      <span>${esc(label(x))}</span><span class="muted">${val(x)}</span></div>
+      <div class="bar"><span style="width:${x.taxa!=null?x.taxa:x.media}%;background:${color?color(x):'var(--accent)'}"></span></div></div>`).join('');
+
+    v.innerHTML=`<div class="grid c3" style="margin-bottom:14px">
+        <div class="kpi"><div class="n">${tents.length}</div><div class="l">Provas corrigidas</div></div>
+        <div class="kpi"><div class="n">${mediaGeral}%</div><div class="l">Média geral da equipe</div></div>
+        <div class="kpi"><div class="n">${ranking.length}</div><div class="l">Colaboradores avaliados</div></div>
+      </div>
+      <div class="grid c2">
+        <div class="card"><h2>🏆 Ranking (média)</h2><div style="margin-top:10px">${bars(ranking,x=>x.nome,x=>x.media+'% ('+x.n+')',x=>x.media>=70?'var(--green)':'var(--amber)')}</div></div>
+        <div class="card"><h2>📚 Dificuldade por assunto</h2><div style="margin-top:10px">${assuntos.length?bars(assuntos,x=>x.nome,x=>x.taxa+'% acertos',x=>x.taxa>=70?'var(--green)':'var(--red)'):'<span class="muted">Sem dados.</span>'}</div></div>
+      </div>
+      <div class="card"><h2>🔻 Questões que mais erram</h2><div style="margin-top:10px">${dificeis.length?bars(dificeis,x=>esc(x.enun.slice(0,60))+(x.enun.length>60?'…':''),x=>x.taxa+'% acertos',x=>x.taxa>=70?'var(--green)':'var(--red)'):'<span class="muted">Sem dados.</span>'}</div></div>
+      <div class="card"><h2>Média por avaliação</h2><div style="margin-top:10px">${
+        Object.keys(porAval).map(id=>{const arr=porAval[id];const m=Math.round(arr.reduce((a,b)=>a+b,0)/arr.length);
+          return `<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span>${esc(am[id]||'—')}</span><span class="muted">${m}% (${arr.length})</span></div><div class="bar"><span style="width:${m}%"></span></div></div>`;
+        }).join('')
+      }</div></div>`;
+  }catch(e){ v.innerHTML=`<div class="card" style="color:var(--red)">Erro: ${esc(e.message)}</div>`; }
+}
+
+// ══════════════════════════════════════════════════════════
+// Boot
+// ══════════════════════════════════════════════════════════
+aplicarTema();
+(function boot(){
+  U=lerSessao();
+  if(U){ iniciarApp(); }
+  else { document.getElementById('login').style.display='block'; }
+})();
+</script>
+</body>
+</html>
