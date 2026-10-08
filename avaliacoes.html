@@ -195,6 +195,20 @@ function closeModal2(){ modal2.classList.remove('open'); }
 modal2.addEventListener('click',e=>{ if(e.target===modal2) closeModal2(); });
 // competência (mês) "AAAA-MM" → "out/2026"
 function fmtComp(c){ if(!c) return '—'; const p=String(c).split('-'); if(p.length<2) return c; const mes=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][(+p[1])-1]||p[1]; return `${mes}/${p[0]}`; }
+// ── Etiquetas (tags) das questões ──
+function tagsDe(q){ if(q && Array.isArray(q.tags) && q.tags.length) return q.tags; if(q && q.competencia) return [q.competencia]; return []; }
+function tagsInline(q){ const t=tagsDe(q); return t.length? ' · '+t.map(esc).join(', ') : ''; }
+function allTags(list){ const s=new Set(); (list||[]).forEach(q=>tagsDe(q).forEach(t=>s.add(t))); return [...s].sort((a,b)=>a.localeCompare(b)); }
+let _qTags=[];
+function renderQTags(){ const el=document.getElementById('q-tags-chips'); if(!el) return;
+  el.innerHTML=_qTags.length? _qTags.map((t,i)=>`<span class="badge b-blue" style="display:inline-flex;align-items:center;gap:6px">${esc(t)} <span data-rm="${i}" style="cursor:pointer">✕</span></span>`).join('') : '<span class="muted" style="font-size:12px">nenhuma etiqueta</span>';
+  el.querySelectorAll('[data-rm]').forEach(x=>x.onclick=()=>{ _qTags.splice(+x.dataset.rm,1); renderQTags(); });
+}
+function qTagAdd(v){ v=(v||'').trim(); if(!v) return; if(!_qTags.some(t=>t.toLowerCase()===v.toLowerCase())) _qTags.push(v); renderQTags(); }
+function setupQTagInput(){ const inp=document.getElementById('q-tag-input'); if(!inp) return;
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===','){ e.preventDefault(); qTagAdd(inp.value.replace(/,/g,'')); inp.value=''; } });
+  inp.addEventListener('blur',()=>{ if(inp.value.trim()){ qTagAdd(inp.value); inp.value=''; } });
+}
 function normComp(s){ s=String(s||'').trim(); let m; if(m=s.match(/^(\d{4})[-\/](\d{1,2})$/)) return m[1]+'-'+String(m[2]).padStart(2,'0'); if(m=s.match(/^(\d{1,2})[\/-](\d{4})$/)) return m[2]+'-'+String(m[1]).padStart(2,'0'); return ''; }
 
 // ── Tema ──
@@ -481,7 +495,7 @@ async function viewBanco(){
         <div class="row" style="margin-top:12px">
           <input id="bq-busca" placeholder="Buscar no enunciado…" oninput="filtrarBanco()">
           <select id="bq-cat" onchange="filtrarBanco()"><option value="">Todas as categorias</option>${_cats.map(c=>`<option value="${c.id}">${esc(c.nome)}</option>`).join('')}</select>
-          <select id="bq-comp" onchange="filtrarBanco()"><option value="">Todas as competências</option>${[...new Set(_qs.map(q=>q.competencia).filter(Boolean))].sort().reverse().map(c=>`<option value="${c}">${fmtComp(c)}</option>`).join('')}</select>
+          <select id="bq-tag" onchange="filtrarBanco()"><option value="">Todas as etiquetas</option>${allTags(_qs).map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('')}</select>
           <select id="bq-tipo" onchange="filtrarBanco()"><option value="">Todos os tipos</option><option value="objetiva">Objetiva</option><option value="dissertativa">Dissertativa</option></select>
         </div>
       </div>
@@ -490,16 +504,16 @@ async function viewBanco(){
   }catch(e){ v.innerHTML=`<div class="card" style="color:var(--red)">Erro: ${esc(e.message)}. Rodou o SQL_avaliacoes.sql?</div>`; }
 }
 function filtrarBanco(){
-  const q=(inVal('bq-busca')||'').toLowerCase(), cat=inVal('bq-cat'), comp=inVal('bq-comp'), tipo=inVal('bq-tipo');
+  const q=(inVal('bq-busca')||'').toLowerCase(), cat=inVal('bq-cat'), tag=inVal('bq-tag'), tipo=inVal('bq-tipo');
   const catMap={}; _cats.forEach(c=>catMap[c.id]=c.nome);
-  const lista=_qs.filter(x=>(!q||x.enunciado.toLowerCase().includes(q))&&(!cat||x.categoria_id===cat)&&(!comp||x.competencia===comp)&&(!tipo||x.tipo===tipo));
+  const lista=_qs.filter(x=>(!q||x.enunciado.toLowerCase().includes(q))&&(!cat||x.categoria_id===cat)&&(!tag||tagsDe(x).includes(tag))&&(!tipo||x.tipo===tipo));
   const el=document.getElementById('bq-lista');
   if(!lista.length){ el.innerHTML=`<div class="center muted" style="padding:20px">Nenhuma questão.</div>`; return; }
-  el.innerHTML=`<table><thead><tr><th>Enunciado</th><th>Categoria</th><th>Competência</th><th>Tipo</th><th>Peso</th><th></th></tr></thead><tbody>`+
+  el.innerHTML=`<table><thead><tr><th>Enunciado</th><th>Categoria</th><th>Etiquetas</th><th>Tipo</th><th>Peso</th><th></th></tr></thead><tbody>`+
     lista.map(x=>`<tr>
       <td>${esc(x.enunciado.slice(0,80))}${x.enunciado.length>80?'…':''}</td>
       <td class="muted">${esc(catMap[x.categoria_id]||'—')}</td>
-      <td class="muted">${fmtComp(x.competencia)}</td>
+      <td class="muted">${tagsDe(x).map(esc).join(', ')||'—'}</td>
       <td>${x.tipo==='objetiva'?'<span class="badge b-blue">Objetiva</span>':'<span class="badge b-amber">Dissertativa</span>'}</td>
       <td>${x.peso}</td>
       <td style="white-space:nowrap"><button class="btn ghost sm" onclick="modalQuestao('${x.id}')">✏️</button>
@@ -514,8 +528,11 @@ function modalQuestao(id){
       <div><label>Categoria</label><select id="q-cat"><option value="">—</option>${_cats.map(c=>`<option value="${c.id}" ${c.id===q.categoria_id?'selected':''}>${esc(c.nome)}</option>`).join('')}</select></div>
       <div><label>Tipo</label><select id="q-tipo" onchange="toggleAlts()"><option value="objetiva" ${q.tipo==='objetiva'?'selected':''}>Objetiva</option><option value="dissertativa" ${q.tipo==='dissertativa'?'selected':''}>Dissertativa</option></select></div>
       <div><label>Peso (pontos)</label><input id="q-peso" type="number" step="0.5" min="0" value="${q.peso??1}"></div>
-      <div><label>Competência (mês)</label><input id="q-comp" type="month" value="${q.competencia||''}"></div>
     </div>
+    <label>Etiquetas (N1, N2, mês, time, ano… digite e Enter para adicionar; pode várias)</label>
+    <div id="q-tags-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px"></div>
+    <input id="q-tag-input" list="q-tag-sug" placeholder="Digite uma etiqueta e tecle Enter">
+    <datalist id="q-tag-sug">${allTags(_qs).map(t=>`<option value="${esc(t)}">`).join('')}</datalist>
     <div id="q-alts">
       ${['A','B','C','D','E'].map(k=>`<div class="row" style="align-items:center"><div style="flex:0;min-width:24px;font-weight:700">${k}</div><input class="q-alt" data-k="${k}" value="${esc(alts[k]||'')}" placeholder="Alternativa ${k} (vazio = não usar)"></div>`).join('')}
       <label>Resposta correta</label><select id="q-resp"><option value="">—</option>${['A','B','C','D','E'].map(k=>`<option value="${k}" ${q.resposta_correta===k?'selected':''}>${k}</option>`).join('')}</select>
@@ -523,6 +540,8 @@ function modalQuestao(id){
     <label>Explicação (opcional, aparece após a correção)</label><textarea id="q-exp">${esc(q.explicacao||'')}</textarea>
     <div style="margin-top:14px"><button class="btn primary" onclick="salvarQuestao('${id||''}')">Salvar</button>
     <button class="btn ghost" onclick="closeModal()">Cancelar</button></div>`, true);
+  _qTags = (q.tags && q.tags.length)? q.tags.slice() : (q.competencia? [q.competencia] : []);
+  renderQTags(); setupQTagInput();
   toggleAlts();
 }
 function toggleAlts(){ document.getElementById('q-alts').style.display = inVal('q-tipo')==='dissertativa'?'none':'block'; }
@@ -535,9 +554,10 @@ async function salvarQuestao(id){
     if(Object.keys(alts).length<2){ toast('Objetiva precisa de pelo menos 2 alternativas.','err'); return; }
     if(!resp||!alts[resp]){ toast('Escolha a resposta correta (entre as alternativas preenchidas).','err'); return; }
   } else { resp=null; }
+  if(inVal('q-tag-input').trim()) qTagAdd(inVal('q-tag-input'));
   const body={ enunciado:enun, tipo, categoria_id:inVal('q-cat')||null, peso:parseFloat(inVal('q-peso'))||1,
     alternativas: tipo==='objetiva'?alts:null, resposta_correta:resp, explicacao:inVal('q-exp').trim()||null,
-    competencia:inVal('q-comp')||null };
+    tags:_qTags.slice() };
   try{
     if(id){ await patch(`aval_questoes?id=eq.${id}`, body); } else { body.criado_por=U.id; await post('aval_questoes', body); }
     closeModal(); toast('Questão salva.','ok'); viewBanco();
@@ -572,9 +592,9 @@ let _bancoQ=[], _bancoCatMap={}, _avalSel=[];  // estado do seletor de questões
 async function viewImportar(){
   const v=document.getElementById('view');
   v.innerHTML=`<div class="card"><h2>Importar questões por planilha</h2>
-    <div class="muted" style="margin:6px 0 12px">Baixe o modelo, preencha e envie. Colunas: <b>categoria, enunciado, tipo, alternativa_a..e, resposta_correta, peso, explicacao</b>.</div>
-    <div style="max-width:260px"><label>Competência padrão (mês)</label><input id="imp-comp" type="month">
-      <div class="muted" style="font-size:11px;margin-top:3px">Usada nas linhas sem a coluna "competencia".</div></div>
+    <div class="muted" style="margin:6px 0 12px">Baixe o modelo, preencha e envie. Colunas: <b>categoria, etiquetas, enunciado, tipo, alternativa_a..e, resposta_correta, peso, explicacao</b>. Em "etiquetas" use várias separadas por vírgula ou ponto-e-vírgula (ex.: N1; Setembro; Time X).</div>
+    <div style="max-width:320px"><label>Etiquetas padrão desta importação</label><input id="imp-tags" placeholder="ex.: Setembro, N1">
+      <div class="muted" style="font-size:11px;margin-top:3px">Aplicadas a todas as linhas (somadas às etiquetas da própria linha).</div></div>
     <div class="row" style="flex:0;gap:8px;margin-top:12px">
       <button class="btn ghost" onclick="baixarModelo()">⬇️ Baixar modelo (.xlsx)</button>
       <label class="btn primary" style="flex:0;cursor:pointer;margin:0">📥 Escolher planilha<input type="file" id="imp-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="lerPlanilha(this.files[0])"></label>
@@ -583,10 +603,10 @@ async function viewImportar(){
   <div id="imp-preview"></div>`;
 }
 function baixarModelo(){
-  const head=["categoria","competencia","enunciado","tipo","alternativa_a","alternativa_b","alternativa_c","alternativa_d","alternativa_e","resposta_correta","peso","explicacao"];
+  const head=["categoria","etiquetas","enunciado","tipo","alternativa_a","alternativa_b","alternativa_c","alternativa_d","alternativa_e","resposta_correta","peso","explicacao"];
   const ex=[
-    ["Produto","2026-10","Qual é o prazo padrão de entrega?","objetiva","24 horas","3 dias úteis","7 dias úteis","15 dias úteis","","C",1,"Prazo padrão: 7 dias úteis."],
-    ["Atendimento","2026-10","Como você conduziria um cliente insatisfeito?","dissertativa","","","","","","",2,"Avaliar empatia e solução."],
+    ["Produto","N1; Setembro","Qual é o prazo padrão de entrega?","objetiva","24 horas","3 dias úteis","7 dias úteis","15 dias úteis","","C",1,"Prazo padrão: 7 dias úteis."],
+    ["Atendimento","N2; Setembro","Como você conduziria um cliente insatisfeito?","dissertativa","","","","","","",2,"Avaliar empatia e solução."],
   ];
   const ws=XLSX.utils.aoa_to_sheet([head,...ex]);
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Questões");
@@ -606,7 +626,9 @@ function lerPlanilha(file){
         const alts={}; ['a','b','c','d','e'].forEach(L=>{ const val=g('alternativa_'+L,'alt_'+L,L); if(val) alts[L.toUpperCase()]=val; });
         const resp=(g('resposta_correta','resposta','correta','gabarito')||'').toUpperCase().slice(0,1);
         const peso=parseFloat(String(g('peso','pontos')).replace(',','.'))||1;
-        const row={ _linha:idx+2, categoria:g('categoria','assunto'), competencia:normComp(g('competencia','competência','mes','mês')),
+        const tagsRaw=g('etiquetas','etiqueta','tags','competencia','competência','mes','mês');
+        const tags=tagsRaw.split(/[;,]/).map(s=>s.trim()).filter(Boolean);
+        const row={ _linha:idx+2, categoria:g('categoria','assunto'), tags,
           enunciado:g('enunciado','pergunta','questao','questão'),
           tipo, alternativas:alts, resposta_correta: tipo==='objetiva'?resp:'', peso, explicacao:g('explicacao','explicação','comentario') };
         row._erros=[];
@@ -624,10 +646,10 @@ function renderPreviewImport(){
   const ok=_importRows.filter(r=>!r._erros.length), bad=_importRows.filter(r=>r._erros.length);
   el.innerHTML=`<div class="card"><h2>Pré-visualização</h2>
     <div class="muted" style="margin:6px 0">${ok.length} válida(s) · ${bad.length} com problema(s)</div>
-    <div style="overflow:auto"><table><thead><tr><th>Linha</th><th>Categoria</th><th>Competência</th><th>Enunciado</th><th>Tipo</th><th>Correta</th><th>Peso</th><th>Status</th></tr></thead><tbody>`+
+    <div style="overflow:auto"><table><thead><tr><th>Linha</th><th>Categoria</th><th>Etiquetas</th><th>Enunciado</th><th>Tipo</th><th>Correta</th><th>Peso</th><th>Status</th></tr></thead><tbody>`+
     _importRows.map(r=>`<tr>
       <td>${r._linha}</td><td class="muted">${esc(r.categoria||'—')}</td>
-      <td class="muted">${r.competencia?fmtComp(r.competencia):'<span style="opacity:.6">(padrão)</span>'}</td>
+      <td class="muted">${(r.tags&&r.tags.length)?r.tags.map(esc).join(', '):'<span style="opacity:.6">(só padrão)</span>'}</td>
       <td>${esc((r.enunciado||'').slice(0,60))}${r.enunciado.length>60?'…':''}</td>
       <td>${r.tipo==='objetiva'?'Obj':'Diss'}</td><td>${esc(r.resposta_correta||'—')}</td><td>${r.peso}</td>
       <td>${r._erros.length?`<span class="badge b-red">${esc(r._erros.join(', '))}</span>`:'<span class="badge b-green">ok</span>'}</td>
@@ -650,10 +672,13 @@ async function confirmarImport(){
         if(ex && ex.length) nomeToId[key]=ex[0].id; else throw e;
       }
     }
-    const compPad=inVal('imp-comp')||null;
-    const payload=ok.map(r=>({ enunciado:r.enunciado, tipo:r.tipo, categoria_id: r.categoria?nomeToId[r.categoria.toLowerCase()]:null,
-      alternativas: r.tipo==='objetiva'?r.alternativas:null, resposta_correta:r.resposta_correta||null,
-      peso:r.peso, explicacao:r.explicacao||null, competencia: r.competencia||compPad, criado_por:U.id }));
+    const tagsPad=(inVal('imp-tags')||'').split(/[;,]/).map(s=>s.trim()).filter(Boolean);
+    const payload=ok.map(r=>{
+      const tags=[...new Set([...(r.tags||[]), ...tagsPad])];
+      return { enunciado:r.enunciado, tipo:r.tipo, categoria_id: r.categoria?nomeToId[r.categoria.toLowerCase()]:null,
+        alternativas: r.tipo==='objetiva'?r.alternativas:null, resposta_correta:r.resposta_correta||null,
+        peso:r.peso, explicacao:r.explicacao||null, tags, criado_por:U.id };
+    });
     await post('aval_questoes', payload);
     toast(`${payload.length} questão(ões) importada(s)!`,'ok');
     _importRows=[]; abaAtual='banco'; renderTabs(); viewBanco();
@@ -693,7 +718,7 @@ async function viewAvaliacoes(){
 async function modalAvaliacao(id){
   const [cats,qs,colabs]=await Promise.all([
     get('aval_categorias?select=*&order=nome.asc'),
-    get('aval_questoes?select=id,enunciado,tipo,peso,categoria_id,competencia&order=created_at.desc'),
+    get('aval_questoes?select=id,enunciado,tipo,peso,categoria_id,tags,competencia&order=created_at.desc'),
     get('colaboradores?select=id,nome,apelido,ativo&order=nome.asc')
   ]);
   const catMap={}; cats.forEach(c=>catMap[c.id]=c.nome);
@@ -736,19 +761,19 @@ function renderSelecionadas(){
     return `<div class="chk" style="cursor:default"><span style="flex:0;min-width:22px;color:var(--muted)">${i+1}.</span>
       <span style="flex:1">${esc((q.enunciado||'').slice(0,70))}${(q.enunciado||'').length>70?'…':''}</span>
       <span class="badge ${q.tipo==='objetiva'?'b-blue':'b-amber'}">${q.tipo==='objetiva'?'Obj':'Diss'}</span>
-      <span class="muted" style="font-size:11px">${esc(_bancoCatMap[q.categoria_id]||'')}${q.competencia?' · '+fmtComp(q.competencia):''} · ${q.peso}pt</span>
+      <span class="muted" style="font-size:11px">${esc(_bancoCatMap[q.categoria_id]||'')}${tagsInline(q)} · ${q.peso}pt</span>
       <button type="button" class="btn ghost sm" title="Remover" onclick="removerSel('${id}')">✕</button></div>`;
   }).join('');
 }
 function removerSel(id){ _avalSel=_avalSel.filter(x=>x!==id); renderSelecionadas(); }
 function abrirPicker(){
-  const comps=[...new Set(_bancoQ.map(q=>q.competencia).filter(Boolean))].sort().reverse();
+  const comps=allTags(_bancoQ);
   const cats=[...new Set(_bancoQ.map(q=>q.categoria_id).filter(Boolean))].map(id=>({id,nome:_bancoCatMap[id]||'—'}));
   openModal2(`<h2>Adicionar questões</h2>
     <div class="row">
       <input id="pk-busca" placeholder="Buscar no enunciado…" oninput="filtrarPicker()">
       <select id="pk-cat" onchange="filtrarPicker()"><option value="">Todas categorias</option>${cats.map(c=>`<option value="${c.id}">${esc(c.nome)}</option>`).join('')}</select>
-      <select id="pk-comp" onchange="filtrarPicker()"><option value="">Todas competências</option>${comps.map(c=>`<option value="${c}">${fmtComp(c)}</option>`).join('')}</select>
+      <select id="pk-comp" onchange="filtrarPicker()"><option value="">Todas etiquetas</option>${comps.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('')}</select>
       <select id="pk-tipo" onchange="filtrarPicker()"><option value="">Todos tipos</option><option value="objetiva">Objetiva</option><option value="dissertativa">Dissertativa</option></select>
     </div>
     <div style="margin:8px 0;font-size:12px"><a onclick="pkMarcar(true)">marcar visíveis</a> · <a onclick="pkMarcar(false)">limpar</a></div>
@@ -763,7 +788,7 @@ function pickerFiltradas(){
   const q=(inVal('pk-busca')||'').toLowerCase(), cat=inVal('pk-cat'), comp=inVal('pk-comp'), tipo=inVal('pk-tipo');
   return _bancoQ.filter(x=>!_avalSel.includes(x.id)
     && (!q||x.enunciado.toLowerCase().includes(q)) && (!cat||x.categoria_id===cat)
-    && (!comp||x.competencia===comp) && (!tipo||x.tipo===tipo));
+    && (!comp||tagsDe(x).includes(comp)) && (!tipo||x.tipo===tipo));
 }
 function filtrarPicker(){
   const disp=pickerFiltradas();
@@ -772,7 +797,7 @@ function filtrarPicker(){
   el.innerHTML = disp.length ? disp.map(q2=>`<label class="chk"><input type="checkbox" class="pk-q" value="${q2.id}">
       <span style="flex:1">${esc(q2.enunciado.slice(0,80))}${q2.enunciado.length>80?'…':''}</span>
       <span class="badge ${q2.tipo==='objetiva'?'b-blue':'b-amber'}">${q2.tipo==='objetiva'?'Obj':'Diss'}</span>
-      <span class="muted" style="font-size:11px">${esc(_bancoCatMap[q2.categoria_id]||'')}${q2.competencia?' · '+fmtComp(q2.competencia):''} · ${q2.peso}pt</span></label>`).join('')
+      <span class="muted" style="font-size:11px">${esc(_bancoCatMap[q2.categoria_id]||'')}${tagsInline(q2)} · ${q2.peso}pt</span></label>`).join('')
     : '<div class="muted" style="padding:6px">Nenhuma questão encontrada (ou já estão na prova).</div>';
 }
 function pkMarcar(v){ document.querySelectorAll('.pk-q').forEach(c=>c.checked=v); }
@@ -1008,7 +1033,7 @@ async function viewMetricas(){
     ]);
     const am={}; avs.forEach(a=>am[a.id]=a.titulo); const cm={}; colabs.forEach(c=>cm[c.id]=c.apelido||c.nome);
     const qids=[...new Set(resp.map(r=>r.questao_id))];
-    const qs=qids.length? await get(`aval_questoes?id=in.(${qids.join(',')})&select=id,enunciado,categoria_id,competencia`):[];
+    const qs=qids.length? await get(`aval_questoes?id=in.(${qids.join(',')})&select=id,enunciado,categoria_id,tags,competencia`):[];
     const qm={}; qs.forEach(q=>qm[q.id]=q);
     const catIds=[...new Set(qs.map(q=>q.categoria_id).filter(Boolean))];
     const cats=catIds.length? await get(`aval_categorias?id=in.(${catIds.join(',')})&select=id,nome`):[];
@@ -1093,10 +1118,10 @@ function exportarRelatorio(){
       t.corrigido_em? new Date(t.corrigido_em).toLocaleString('pt-BR'):'' ]);
   // 2) Questões que MAIS DA METADE errou (taxa de acerto < 50%)
   const qStats=Object.keys(porQ).map(qid=>{ const x=porQ[qid]; const q=qm[qid]||{};
-    return { enun:x.enun||q.enunciado||'', cat:catNome[q.categoria_id]||'Sem categoria', comp:fmtComp(q.competencia),
+    return { enun:x.enun||q.enunciado||'', cat:catNome[q.categoria_id]||'Sem categoria', comp:tagsDe(q).join(', '),
       taxa:Math.round(x.ok/x.n*100), erraram:x.n-x.ok, responderam:x.n }; });
   const criticas=qStats.filter(x=>x.taxa<50).sort((a,b)=>a.taxa-b.taxa);
-  const critHead=['Questão','Categoria','Competência','% acerto','Erraram','Responderam'];
+  const critHead=['Questão','Categoria','Etiquetas','% acerto','Erraram','Responderam'];
   const critRows=(criticas.length?criticas:qStats.sort((a,b)=>a.taxa-b.taxa)).map(x=>[x.enun,x.cat,x.comp,x.taxa+'%',x.erraram,x.responderam]);
   // 3) Por assunto
   const assHead=['Assunto','% acerto','Respostas'];
