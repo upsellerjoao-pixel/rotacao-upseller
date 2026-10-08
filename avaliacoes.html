@@ -231,7 +231,7 @@ document.getElementById('btn-sair').onclick=()=>{ localStorage.removeItem('aval_
 // ══════════════════════════════════════════════════════════
 const NAV = {
   colab:  [['minhas','📋 Minhas avaliações'],['desempenho','📈 Meu desempenho']],
-  gestor: [['minhas','📋 Minhas avaliações'],['desempenho','📈 Meu desempenho'],['correcao','✍️ Correção'],['metricas','📊 Métricas']],
+  gestor: [['minhas','📋 Minhas avaliações'],['desempenho','📈 Meu desempenho'],['correcao','✍️ Correção']],
   super:  [['avaliacoes','🗂️ Avaliações'],['banco','🏦 Banco de questões'],['importar','📥 Importar planilha'],['correcao','✍️ Correção'],['metricas','📊 Métricas']],
 };
 let abaAtual=null;
@@ -840,13 +840,48 @@ async function verParticipacao(id){
   const colabs=cids.length? await get(`colaboradores?id=in.(${cids.join(',')})&select=id,nome,apelido`):[];
   const tByC={}; tents.forEach(t=>tByC[t.colaborador_id]=t);
   openModal(`<h2>Quem fez — ${esc(aval[0].titulo)}</h2>
-    <table><thead><tr><th>Colaborador</th><th>Status</th><th>Nota</th></tr></thead><tbody>`+
+    <table><thead><tr><th>Colaborador</th><th>Status</th><th>Nota</th><th></th></tr></thead><tbody>`+
     colabs.map(c=>{ const t=tByC[c.id];
+      const podeVer = t && t.status!=='em_andamento';
       return `<tr><td>${esc(c.apelido||c.nome)}</td>
         <td>${t?statusBadge(t.status==='em_andamento'?'em_andamento':t.status):'<span class="badge b-grey">Não iniciou</span>'}</td>
-        <td>${t&&t.percentual!=null?t.percentual+'%':'—'}</td></tr>`;
+        <td>${t&&t.percentual!=null?t.percentual+'%':'—'}</td>
+        <td>${podeVer?`<button class="btn ghost sm" onclick="verRespostasTentativa('${t.id}')">👁️ Ver respostas</button>`:''}</td></tr>`;
     }).join('')+`</tbody></table>
     <div style="margin-top:14px"><button class="btn ghost" onclick="closeModal()">Fechar</button></div>`, true);
+}
+
+// Ver as respostas de um colaborador (durante ou após a correção) — abre sobre o "Quem fez"
+async function verRespostasTentativa(tentId){
+  try{
+    const t=(await get(`avaliacao_tentativas?id=eq.${tentId}&select=*&limit=1`))[0];
+    const aval=(await get(`avaliacoes?id=eq.${t.avaliacao_id}&select=titulo&limit=1`))[0];
+    const colab=(await get(`colaboradores?id=eq.${t.colaborador_id}&select=nome,apelido&limit=1`))[0];
+    const resp=await get(`avaliacao_respostas?tentativa_id=eq.${tentId}&select=*`);
+    const qids=resp.map(r=>r.questao_id);
+    const qs=qids.length? await get(`aval_questoes?id=in.(${qids.join(',')})&select=*`):[];
+    const qm={}; qs.forEach(q=>qm[q.id]=q);
+    const links=await get(`avaliacao_questoes?avaliacao_id=eq.${t.avaliacao_id}&select=questao_id,ordem&order=ordem.asc`);
+    const ord={}; links.forEach((l,i)=>ord[l.questao_id]=i);
+    resp.sort((a,b)=>(ord[a.questao_id]??99)-(ord[b.questao_id]??99));
+    const corpo=resp.map((r,i)=>{ const q=qm[r.questao_id]||{};
+      let body='';
+      if(q.tipo==='objetiva'){ const alts=q.alternativas||{};
+        body=Object.keys(alts).filter(k=>alts[k]).map(k=>{ let cls=''; if(k===q.resposta_correta)cls='ok'; else if(k===r.resposta&&k!==q.resposta_correta)cls='err';
+          return `<div class="opt ${cls}"><div class="k">${k}</div><div>${esc(alts[k])}</div></div>`; }).join('');
+      } else {
+        body=`<div class="muted" style="font-size:12px">Resposta do colaborador:</div><div class="q" style="margin:4px 0;background:var(--card)">${esc(r.resposta||'—')}</div>`
+          +(r.feedback?`<div class="muted" style="font-size:12px">Comentário da correção:</div><div class="q" style="margin:4px 0;background:var(--card)">${esc(r.feedback)}</div>`:'');
+      }
+      const badge = r.correta==null?'b-grey':(r.correta?'b-green':'b-red');
+      return `<div class="q"><div class="enun">${i+1}. ${esc(q.enunciado||'')} <span class="badge ${badge}" style="float:right">${r.pontos??0}/${r.pontos_max??0}pt</span></div>${body}
+        ${q.explicacao?`<div class="muted" style="font-size:12px;margin-top:6px">💡 ${esc(q.explicacao)}</div>`:''}</div>`;
+    }).join('');
+    openModal2(`<h2>${esc(colab.apelido||colab.nome)} — ${esc(aval.titulo)}</h2>
+      <div class="muted" style="margin-bottom:10px">${statusBadge(t.status)} · Nota: ${t.nota??'—'} / ${t.nota_max??'—'} · ${t.percentual??'—'}%</div>
+      ${corpo||'<div class="muted">Sem respostas registradas.</div>'}
+      <div style="margin-top:14px"><button class="btn ghost" onclick="closeModal2()">Fechar</button></div>`);
+  }catch(e){ toast('Erro ao abrir respostas: '+e.message,'err'); }
 }
 
 // ══════════════════════════════════════════════════════════
