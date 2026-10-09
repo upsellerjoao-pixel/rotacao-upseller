@@ -126,10 +126,11 @@
   .qz-prog{height:7px;border-radius:999px;background:rgba(255,255,255,.08);margin:14px 0 2px;overflow:hidden}
   .qz-prog>i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#1f6fff,#ff8a1e);
     box-shadow:0 0 14px rgba(255,138,30,.6);transition:width .4s ease}
-  .qz-mid{flex:1;display:flex;flex-direction:column;justify-content:center;gap:clamp(14px,2.8vh,30px);min-height:0}
-  .qz-anim{animation:qzin .45s cubic-bezier(.2,.8,.2,1) both}
-  @keyframes qzin{from{opacity:0;transform:translateY(22px) scale(.98)}to{opacity:1;transform:none}}
-  .qz-enun{font-size:clamp(26px,4.6vw,56px);font-weight:800;line-height:1.12;text-align:center;max-width:1150px;margin:0 auto;
+  .qz-mid{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:0;overflow:hidden}
+  .qz-fit{width:100%;display:flex;flex-direction:column;gap:clamp(12px,2.2vh,26px);transform-origin:center center}
+  .qz-anim{animation:qzin .4s cubic-bezier(.2,.8,.2,1) both}
+  @keyframes qzin{from{opacity:0;transform:translateY(18px) scale(.985)}to{opacity:1;transform:none}}
+  .qz-enun{font-size:clamp(20px,3.6vw,46px);font-weight:800;line-height:1.14;text-align:center;max-width:1150px;margin:0 auto;
     text-shadow:0 2px 20px rgba(0,0,0,.4)}
   .qz-timer{align-self:center;position:relative;width:clamp(94px,10.5vw,138px);aspect-ratio:1;border-radius:50%;
     background:conic-gradient(var(--ring,#1f6fff) calc(var(--p,100)*1%), rgba(255,255,255,.07) 0);
@@ -1283,6 +1284,7 @@ function iniciarApresentacao(titulo, qs, tempo){
   const stage=document.getElementById('quiz-stage');
   stage.classList.add('on');
   document.addEventListener('keydown', qzKey);
+  window.addEventListener('resize', qzFit);
   qzAC(); qzSound('start');
   qzRender();
 }
@@ -1328,12 +1330,14 @@ function qzRender(){
     </div>
     <div class="qz-prog"><i style="width:${pct}%"></i></div>
     <div class="qz-mid qz-anim">
-      <div class="qz-enun">${esc(q.enunciado)}</div>
-      <div class="qz-timer" style="--p:100"><span class="qz-timenum">${_qz.tempo}</span></div>
-      ${altsHtml}
-      <div class="qz-expl"><div class="qz-expl-t">${obj?'Resposta correta e explicação':'Gabarito / pontos esperados'}</div>
-        ${obj&&q.resposta_correta?`<b>Resposta: ${esc(q.resposta_correta)}</b> — ${esc((alts[q.resposta_correta]||''))}<br>`:''}
-        ${esc(q.explicacao||'')||'<span style="opacity:.7">(sem explicação cadastrada)</span>'}</div>
+      <div class="qz-fit" id="qz-fit">
+        <div class="qz-enun">${esc(q.enunciado)}</div>
+        <div class="qz-timer" style="--p:100"><span class="qz-timenum">${_qz.tempo}</span></div>
+        ${altsHtml}
+        <div class="qz-expl"><div class="qz-expl-t">${obj?'Resposta correta e explicação':'Gabarito / pontos esperados'}</div>
+          ${obj&&q.resposta_correta?`<b>Resposta: ${esc(q.resposta_correta)}</b> — ${esc((alts[q.resposta_correta]||''))}<br>`:''}
+          ${esc(q.explicacao||'')||'<span style="opacity:.7">(sem explicação cadastrada)</span>'}</div>
+      </div>
     </div>
     <div class="qz-ctrls">
       <button class="qz-btn" onclick="qzPrev()">‹ Anterior</button>
@@ -1346,6 +1350,18 @@ function qzRender(){
     <div class="qz-hint">Espaço = revelar · → próxima · ← anterior · P pausar · +/− tempo · M som · F tela cheia · Esc sair</div>`;
   qzPaintTimer();
   qzStartTimer();
+  requestAnimationFrame(qzFit);
+}
+function qzFit(){
+  const mid=document.querySelector('#quiz-stage .qz-mid');
+  const fit=document.getElementById('qz-fit');
+  if(!mid||!fit) return;
+  fit.style.transform='';
+  const avail=mid.clientHeight, nat=fit.scrollHeight;
+  if(nat>avail && avail>0){
+    const s=Math.max(0.35, (avail/nat)-0.012);
+    fit.style.transform='scale('+s.toFixed(3)+')';
+  }
 }
 function qzReveal(){
   if(_qz.revealed) return;
@@ -1360,6 +1376,7 @@ function qzReveal(){
     setTimeout(()=>qzSound('correct'),260);
   }
   qzPaintTimer();
+  requestAnimationFrame(qzFit);
   const rb=document.getElementById('qz-reveal'); if(rb){ rb.textContent='Revelado'; rb.disabled=true; rb.style.opacity=.5; }
 }
 function qzBurst(target){
@@ -1380,7 +1397,7 @@ function qzPause(){ _qz.paused=!_qz.paused; const b=document.getElementById('qz-
 function qzTempo(d){ _qz.tempo=Math.max(3,Math.min(300,_qz.tempo+d)); if(!_qz.revealed){ _qz.remaining=Math.max(1,_qz.remaining+d); qzPaintTimer(); } toast('Tempo: '+_qz.tempo+'s','ok'); }
 function qzMute(){ _muted=!_muted; if(!_muted) qzSound('next'); const b=document.querySelector('#quiz-stage .qz-ico'); if(b) b.textContent=_muted?'🔇':'🔊'; toast(_muted?'Som desligado':'Som ligado','ok'); }
 function qzFull(){ const s=document.getElementById('quiz-stage'); if(!document.fullscreenElement){ (s.requestFullscreen&&s.requestFullscreen()); } else { document.exitFullscreen&&document.exitFullscreen(); } }
-function qzSair(){ qzStopTimer(); document.removeEventListener('keydown',qzKey); if(document.fullscreenElement) document.exitFullscreen&&document.exitFullscreen(); const s=document.getElementById('quiz-stage'); s.classList.remove('on','reveal'); s.innerHTML=''; _qz=null; }
+function qzSair(){ qzStopTimer(); document.removeEventListener('keydown',qzKey); window.removeEventListener('resize',qzFit); if(document.fullscreenElement) document.exitFullscreen&&document.exitFullscreen(); const s=document.getElementById('quiz-stage'); s.classList.remove('on','reveal'); s.innerHTML=''; _qz=null; }
 function qzKey(e){
   if(!_qz) return;
   if(e.key===' '||e.key==='Enter'){ e.preventDefault(); if(!_qz.revealed) qzReveal(); else qzNext(); }
