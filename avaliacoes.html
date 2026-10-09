@@ -104,6 +104,45 @@
   .chk input{width:auto}
   /* login */
   #login{max-width:360px;margin:9vh auto 0}
+  /* ── Quiz ao vivo (apresentação) ── */
+  #quiz-stage{position:fixed;inset:0;z-index:100;display:none;flex-direction:column;
+    background:radial-gradient(120% 90% at 50% -10%, #16233f, #0a0f1e 60%);color:#fff;
+    font-family:'Segoe UI',system-ui,sans-serif;padding:24px clamp(18px,5vw,70px)}
+  #quiz-stage.on{display:flex}
+  .qz-top{display:flex;align-items:center;gap:16px;font-size:15px;color:#9fb3d4}
+  .qz-top .qz-title{font-weight:700;color:#fff;flex:1;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .qz-badge{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:4px 12px;font-weight:600}
+  .qz-mid{flex:1;display:flex;flex-direction:column;justify-content:center;gap:clamp(16px,3vh,34px);min-height:0}
+  .qz-enun{font-size:clamp(24px,4.4vw,52px);font-weight:800;line-height:1.15;text-align:center;max-width:1100px;margin:0 auto}
+  .qz-timer{align-self:center;width:clamp(78px,10vw,120px);height:clamp(78px,10vw,120px);border-radius:50%;
+    display:flex;align-items:center;justify-content:center;font-size:clamp(30px,5vw,54px);font-weight:800;
+    border:6px solid #2563eb;color:#dbe7ff;transition:border-color .3s,color .3s}
+  .qz-timer.warn{border-color:#f59e0b;color:#fde68a}
+  .qz-timer.crit{border-color:#ef4444;color:#fecaca;animation:qzpulse .6s infinite}
+  .qz-timer.off{border-color:#334;color:#667}
+  @keyframes qzpulse{50%{transform:scale(1.08)}}
+  .qz-alts{display:grid;grid-template-columns:1fr 1fr;gap:clamp(12px,2vw,22px);max-width:1200px;margin:0 auto;width:100%}
+  .qz-alt{display:flex;align-items:center;gap:16px;border-radius:18px;padding:clamp(14px,2.2vh,26px) clamp(16px,2vw,28px);
+    font-size:clamp(18px,2.3vw,30px);font-weight:600;color:#fff;border:3px solid transparent;transition:opacity .3s,transform .2s,box-shadow .3s}
+  .qz-alt .qz-k{width:clamp(40px,3vw,56px);height:clamp(40px,3vw,56px);border-radius:12px;background:rgba(0,0,0,.25);
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:clamp(20px,2vw,30px);flex-shrink:0}
+  .qz-alt.cA{background:#be123c}.qz-alt.cB{background:#1d4ed8}.qz-alt.cC{background:#b45309}.qz-alt.cD{background:#6d28d9}
+  .qz-alt.cE{background:#0f766e}
+  .qz-stage.reveal .qz-alt{opacity:.32}
+  #quiz-stage.reveal .qz-alt{opacity:.3}
+  #quiz-stage.reveal .qz-alt.correct{opacity:1;box-shadow:0 0 0 5px #22c55e,0 0 40px rgba(34,197,94,.6);transform:scale(1.03)}
+  .qz-falada{text-align:center;color:#9fb3d4;font-size:clamp(16px,2vw,24px);border:2px dashed rgba(255,255,255,.18);border-radius:16px;padding:18px;max-width:900px;margin:0 auto}
+  .qz-expl{display:none;max-width:1000px;margin:0 auto;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.35);
+    border-radius:16px;padding:clamp(14px,2vh,22px);font-size:clamp(16px,1.8vw,24px);line-height:1.4}
+  #quiz-stage.reveal .qz-expl{display:block}
+  .qz-expl .qz-expl-t{color:#86efac;font-weight:700;font-size:.8em;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+  .qz-ctrls{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;padding-top:14px}
+  .qz-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);color:#fff;border-radius:12px;
+    padding:11px 18px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit}
+  .qz-btn:hover{background:rgba(255,255,255,.16)}
+  .qz-btn.main{background:#22c55e;border-color:#22c55e}
+  .qz-btn.blue{background:#2563eb;border-color:#2563eb}
+  .qz-hint{color:#67769a;font-size:12px;text-align:center;padding-top:8px}
 </style>
 </head>
 <body>
@@ -146,6 +185,7 @@
 <div class="modal" id="modal"><div class="box" id="modal-box"></div></div>
 <div class="modal" id="modal2" style="z-index:60"><div class="box wide" id="modal2-box"></div></div>
 <div class="toast" id="toast"></div>
+<div id="quiz-stage"></div>
 
 <script>
 // ══════════════════════════════════════════════════════════
@@ -246,7 +286,7 @@ document.getElementById('btn-sair').onclick=()=>{ localStorage.removeItem('aval_
 const NAV = {
   colab:  [['minhas','📋 Minhas avaliações'],['desempenho','📈 Meu desempenho']],
   gestor: [['minhas','📋 Minhas avaliações'],['desempenho','📈 Meu desempenho'],['correcao','✍️ Correção']],
-  super:  [['avaliacoes','🗂️ Avaliações'],['banco','🏦 Banco de questões'],['importar','📥 Importar planilha'],['correcao','✍️ Correção'],['metricas','📊 Métricas']],
+  super:  [['avaliacoes','🗂️ Avaliações'],['banco','🏦 Banco de questões'],['importar','📥 Importar planilha'],['correcao','✍️ Correção'],['metricas','📊 Métricas'],['quiz','🎮 Quiz']],
 };
 let abaAtual=null;
 function renderTabs(){
@@ -258,7 +298,7 @@ function renderTabs(){
 function abrirAba(){
   const v=document.getElementById('view'); v.innerHTML='<div class="spin"></div>';
   ({ minhas:viewMinhas, desempenho:viewDesempenho, avaliacoes:viewAvaliacoes, banco:viewBanco,
-     importar:viewImportar, correcao:viewCorrecao, metricas:viewMetricas }[abaAtual] || viewMinhas)();
+     importar:viewImportar, correcao:viewCorrecao, metricas:viewMetricas, quiz:viewQuiz }[abaAtual] || viewMinhas)();
 }
 function iniciarApp(){
   document.getElementById('login').style.display='none';
@@ -1135,6 +1175,165 @@ function exportarRelatorio(){
   XLSX.writeFile(wb, `relatorio_avaliacoes_${hoje}.xlsx`);
   toast('Relatório exportado.','ok');
 }
+
+// ══════════════════════════════════════════════════════════
+// QUIZ AO VIVO (super gestor) — apresentação na sala, sem métricas
+// ══════════════════════════════════════════════════════════
+async function viewQuiz(){
+  const v=document.getElementById('view');
+  try{
+    const quizzes=await get('quizzes?select=*&order=created_at.desc');
+    v.innerHTML=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div><h2>🎮 Quiz ao vivo</h2><div class="muted">Dinâmica de sexta — monte um quiz com perguntas do banco e apresente na tela da sala.</div></div>
+        <button class="btn primary" onclick="modalQuiz()">➕ Novo quiz</button></div></div>`
+      + (quizzes.length? `<div class="grid c2">`+quizzes.map(q=>`<div class="card">
+          <h2>${esc(q.titulo)}</h2>
+          <div class="muted" style="margin:6px 0">${(q.questao_ids||[]).length} pergunta(s) · ${q.tempo_padrao||20}s por pergunta</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+            <button class="btn green sm" onclick="jogarQuiz('${q.id}')">▶️ Apresentar</button>
+            <button class="btn ghost sm" onclick="modalQuiz('${q.id}')">Editar</button>
+            <button class="btn ghost sm" onclick="excluirQuiz('${q.id}')">🗑️</button>
+          </div></div>`).join('')+`</div>`
+        : `<div class="card center muted">Nenhum quiz ainda. Crie o primeiro.</div>`);
+  }catch(e){ v.innerHTML=`<div class="card" style="color:var(--red)">Erro: ${esc(e.message)}. Rodou o SQL_quiz.sql?</div>`; }
+}
+async function modalQuiz(id){
+  const [qs]=await Promise.all([ get('aval_questoes?select=id,enunciado,tipo,peso,categoria_id,tags,competencia&order=created_at.desc') ]);
+  const cats=await get('aval_categorias?select=id,nome'); const catMap={}; cats.forEach(c=>catMap[c.id]=c.nome);
+  _bancoQ=qs; _bancoCatMap=catMap;
+  let q={titulo:'',tempo_padrao:20,questao_ids:[]};
+  if(id){ q=(await get(`quizzes?id=eq.${id}&select=*&limit=1`))[0]; }
+  _avalSel=(q.questao_ids||[]).slice();
+  openModal(`<h2>${id?'Editar':'Novo'} quiz</h2>
+    <div class="row">
+      <div style="flex:2"><label>Título</label><input id="qz-tit" value="${esc(q.titulo)}" placeholder="Ex.: Quiz de sexta — Setembro"></div>
+      <div style="flex:0;min-width:160px"><label>Tempo padrão (s)</label><input id="qz-tempo" type="number" min="3" max="300" value="${q.tempo_padrao||20}"></div>
+    </div>
+    <label>Perguntas (<span id="a-qcount">0</span>)</label>
+    <div id="a-selecionadas" style="border:1px solid var(--border);border-radius:9px;padding:8px;min-height:52px;max-height:260px;overflow:auto"></div>
+    <button type="button" class="btn ghost sm" style="margin-top:8px" onclick="abrirPicker()">➕ Adicionar perguntas</button>
+    <div style="margin-top:14px"><button class="btn primary" onclick="salvarQuiz('${id||''}')">Salvar</button>
+    <button class="btn ghost" onclick="closeModal()">Cancelar</button></div>`, true);
+  renderSelecionadas();
+}
+async function salvarQuiz(id){
+  const titulo=inVal('qz-tit').trim(); if(!titulo){ toast('Dê um título.','err'); return; }
+  if(!_avalSel.length){ toast('Escolha ao menos uma pergunta.','err'); return; }
+  const body={ titulo, tempo_padrao:parseInt(inVal('qz-tempo'),10)||20, questao_ids:_avalSel.slice() };
+  try{
+    if(id){ await patch(`quizzes?id=eq.${id}`, body); }
+    else { body.criado_por=U.id; await post('quizzes', body); }
+    closeModal(); toast('Quiz salvo.','ok'); viewQuiz();
+  }catch(e){ toast('Erro: '+e.message,'err'); }
+}
+async function excluirQuiz(id){
+  if(!confirm('Excluir este quiz? (as perguntas do banco não são afetadas)')) return;
+  try{ await del(`quizzes?id=eq.${id}`); toast('Excluído.','ok'); viewQuiz(); }
+  catch(e){ toast('Erro: '+e.message,'err'); }
+}
+async function jogarQuiz(id){
+  try{
+    const q=(await get(`quizzes?id=eq.${id}&select=*&limit=1`))[0];
+    const ids=(q.questao_ids||[]); if(!ids.length){ toast('Quiz sem perguntas.','err'); return; }
+    const qs=await get(`aval_questoes?id=in.(${ids.join(',')})&select=*`);
+    const byId={}; qs.forEach(x=>byId[x.id]=x);
+    const ordenadas=ids.map(i=>byId[i]).filter(Boolean);
+    iniciarApresentacao(q.titulo, ordenadas, q.tempo_padrao||20);
+  }catch(e){ toast('Erro ao abrir o quiz: '+e.message,'err'); }
+}
+
+// ── Apresentação (tela cheia) ──
+const CORES=['cA','cB','cC','cD','cE'];
+let _qz=null;
+function iniciarApresentacao(titulo, qs, tempo){
+  _qz={titulo, qs, i:0, tempo:tempo, remaining:tempo, revealed:false, paused:false, timer:null};
+  const stage=document.getElementById('quiz-stage');
+  stage.classList.add('on');
+  document.addEventListener('keydown', qzKey);
+  qzRender();
+}
+function qzStopTimer(){ if(_qz.timer){ clearInterval(_qz.timer); _qz.timer=null; } }
+function qzStartTimer(){
+  qzStopTimer();
+  if(_qz.revealed) return;
+  _qz.timer=setInterval(()=>{
+    if(_qz.paused) return;
+    _qz.remaining--;
+    qzPaintTimer();
+    if(_qz.remaining<=0){ qzBeep(); qzReveal(); }
+  },1000);
+}
+function qzPaintTimer(){
+  const el=document.querySelector('#quiz-stage .qz-timer'); if(!el) return;
+  el.textContent=_qz.revealed?'✓':Math.max(0,_qz.remaining);
+  el.className='qz-timer'+(_qz.revealed?' off':(_qz.remaining<=3?' crit':(_qz.remaining<=Math.ceil(_qz.tempo*0.4)?' warn':'')));
+}
+function qzRender(){
+  const stage=document.getElementById('quiz-stage');
+  const q=_qz.qs[_qz.i]; _qz.revealed=false; _qz.remaining=_qz.tempo; _qz.paused=false;
+  stage.classList.remove('reveal');
+  const obj=q.tipo==='objetiva';
+  const alts=q.alternativas||{};
+  const altsHtml = obj ? `<div class="qz-alts">`+Object.keys(alts).filter(k=>alts[k]).map((k,idx)=>
+      `<div class="qz-alt ${CORES[idx]||'cA'}" data-k="${k}"><div class="qz-k">${k}</div><div>${esc(alts[k])}</div></div>`).join('')+`</div>`
+    : `<div class="qz-falada">🗣️ Pergunta de resposta falada — a turma responde em voz alta. Clique em “Revelar” para mostrar o gabarito.</div>`;
+  stage.innerHTML=`
+    <div class="qz-top">
+      <span class="qz-title">${esc(_qz.titulo)}</span>
+      <span class="qz-badge">${_qz.i+1} / ${_qz.qs.length}</span>
+      <span class="qz-badge">${obj?'Objetiva':'Falada'}</span>
+      <button class="qz-btn" onclick="qzFull()">⛶ Tela cheia</button>
+      <button class="qz-btn" onclick="qzSair()">✕ Sair</button>
+    </div>
+    <div class="qz-mid">
+      <div class="qz-enun">${esc(q.enunciado)}</div>
+      <div class="qz-timer">${_qz.tempo}</div>
+      ${altsHtml}
+      <div class="qz-expl"><div class="qz-expl-t">${obj?'Resposta correta e explicação':'Gabarito / pontos esperados'}</div>
+        ${obj&&q.resposta_correta?`<b>Resposta: ${esc(q.resposta_correta)}</b> — ${esc((alts[q.resposta_correta]||''))}<br>`:''}
+        ${esc(q.explicacao||'')||'<span style="opacity:.7">(sem explicação cadastrada)</span>'}</div>
+    </div>
+    <div class="qz-ctrls">
+      <button class="qz-btn" onclick="qzPrev()">‹ Anterior</button>
+      <button class="qz-btn main" id="qz-reveal" onclick="qzReveal()">Revelar (espaço)</button>
+      <button class="qz-btn blue" onclick="qzNext()">Próxima ›</button>
+      <button class="qz-btn" onclick="qzPause()" id="qz-pause">⏸ Pausar</button>
+      <button class="qz-btn" onclick="qzTempo(-5)">− 5s</button>
+      <button class="qz-btn" onclick="qzTempo(5)">+ 5s</button>
+    </div>
+    <div class="qz-hint">Espaço = revelar · → próxima · ← anterior · P pausar · +/− tempo · F tela cheia · Esc sair</div>`;
+  qzPaintTimer();
+  qzStartTimer();
+}
+function qzReveal(){
+  if(_qz.revealed) return;
+  _qz.revealed=true; qzStopTimer();
+  const stage=document.getElementById('quiz-stage'); stage.classList.add('reveal');
+  const q=_qz.qs[_qz.i];
+  if(q.tipo==='objetiva' && q.resposta_correta){
+    const el=stage.querySelector(`.qz-alt[data-k="${q.resposta_correta}"]`); if(el) el.classList.add('correct');
+  }
+  qzPaintTimer();
+  const rb=document.getElementById('qz-reveal'); if(rb){ rb.textContent='Revelado'; rb.disabled=true; rb.style.opacity=.5; }
+}
+function qzNext(){ if(_qz.i<_qz.qs.length-1){ _qz.i++; qzRender(); } else { toast('Fim do quiz!','ok'); } }
+function qzPrev(){ if(_qz.i>0){ _qz.i--; qzRender(); } }
+function qzPause(){ _qz.paused=!_qz.paused; const b=document.getElementById('qz-pause'); if(b) b.textContent=_qz.paused?'▶ Retomar':'⏸ Pausar'; }
+function qzTempo(d){ _qz.tempo=Math.max(3,Math.min(300,_qz.tempo+d)); if(!_qz.revealed){ _qz.remaining=Math.max(1,_qz.remaining+d); qzPaintTimer(); } toast('Tempo: '+_qz.tempo+'s','ok'); }
+function qzFull(){ const s=document.getElementById('quiz-stage'); if(!document.fullscreenElement){ (s.requestFullscreen&&s.requestFullscreen()); } else { document.exitFullscreen&&document.exitFullscreen(); } }
+function qzSair(){ qzStopTimer(); document.removeEventListener('keydown',qzKey); if(document.fullscreenElement) document.exitFullscreen&&document.exitFullscreen(); const s=document.getElementById('quiz-stage'); s.classList.remove('on','reveal'); s.innerHTML=''; _qz=null; }
+function qzKey(e){
+  if(!_qz) return;
+  if(e.key===' '||e.key==='Enter'){ e.preventDefault(); if(!_qz.revealed) qzReveal(); else qzNext(); }
+  else if(e.key==='ArrowRight'){ e.preventDefault(); qzNext(); }
+  else if(e.key==='ArrowLeft'){ e.preventDefault(); qzPrev(); }
+  else if(e.key==='p'||e.key==='P'){ qzPause(); }
+  else if(e.key==='+'||e.key==='='){ qzTempo(5); }
+  else if(e.key==='-'||e.key==='_'){ qzTempo(-5); }
+  else if(e.key==='f'||e.key==='F'){ qzFull(); }
+  else if(e.key==='Escape'){ qzSair(); }
+}
+function qzBeep(){ try{ const a=new (window.AudioContext||window.webkitAudioContext)(); const o=a.createOscillator(); const g=a.createGain(); o.connect(g); g.connect(a.destination); o.frequency.value=660; g.gain.value=0.07; o.start(); setTimeout(()=>{o.stop();a.close();},180); }catch(e){} }
 
 // ══════════════════════════════════════════════════════════
 // Boot
