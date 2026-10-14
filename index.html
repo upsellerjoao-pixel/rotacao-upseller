@@ -2146,6 +2146,43 @@ function aplicarSessao() {
   }
   setTimeout(iniciarRealtime, 500); // pequeno delay para garantir que loadAll já iniciou
   setTimeout(iniciarPollingAlmoco, 1000); // polling de almoço a cada 5 min
+  setTimeout(iniciarMonitorAnydesk, 1500); // avisa o gestor quando AnyDesk passa do limite
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// MONITOR DE ANYDESK — alerta ao gestor (camada 2 do alerta em camadas)
+// Lê os AnyDesk ainda abertos (fim IS NULL) e, se algum passou de
+// ANYDESK_ESCALA_MIN, mostra um banner no topo pro gestor acompanhar/escalar.
+// ══════════════════════════════════════════════════════════════════════
+let _anydeskBannerEl = null;
+function iniciarMonitorAnydesk() {
+  checarAnydeskAbertos();
+  setInterval(checarAnydeskAbertos, 60000); // a cada 1 min
+}
+async function checarAnydeskAbertos() {
+  try {
+    const rows = await sbFetchSvc(`historico_status?select=colaborador_id,motivo_texto,inicio&status=eq.ocupado&motivo=eq.anydesk&fim=is.null`).catch(() => []);
+    const agora = Date.now();
+    const estourados = (rows || []).map(r => ({
+      nome: (colabsAdmin.find(c => c.id === r.colaborador_id) || {}).apelido
+            || (colabsAdmin.find(c => c.id === r.colaborador_id) || {}).nome || '?',
+      id: (r.motivo_texto || '').replace(/^Atendimento\s*/i, '').trim(),
+      min: Math.floor((agora - new Date(r.inicio).getTime()) / 60000)
+    })).filter(x => x.min >= ANYDESK_ESCALA_MIN).sort((a, b) => b.min - a.min);
+
+    if (!estourados.length) { if (_anydeskBannerEl) _anydeskBannerEl.style.display = 'none'; return; }
+
+    if (!_anydeskBannerEl) {
+      _anydeskBannerEl = document.createElement('div');
+      _anydeskBannerEl.id = 'anydesk-banner';
+      _anydeskBannerEl.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#1e0d0d;border-bottom:1px solid #ef4444;color:#fecaca;padding:10px 16px;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.4);';
+      document.body.appendChild(_anydeskBannerEl);
+    }
+    const lista = estourados.map(x => `<b>${x.nome}</b>${x.id ? ` (atend. ${x.id})` : ''} — ${x.min}min`).join(' · ');
+    _anydeskBannerEl.innerHTML = `🚨 <b>AnyDesk acima de ${ANYDESK_ESCALA_MIN}min</b> — verifique se precisa escalar: ${lista}
+      <span style="float:right;cursor:pointer;opacity:.7;" onclick="this.parentElement.style.display='none'">✕</span>`;
+    _anydeskBannerEl.style.display = 'block';
+  } catch (e) {}
 }
 
 // Ativa VISUALMENTE a aba salva (só CSS, sem chamar funções de render).
@@ -6763,8 +6800,11 @@ let ausenciasCache = [];
 const LABEL_MOTIVO_AUS = {
   anydesk:'🖥️ AnyDesk', banheiro:'🚻 Banheiro', chamado:'🎫 Chamado', pausa:'☕ Pausa / Café',
   treino:'🎓 Treinamento / Capacitação', almoco:'🍽️ Almoço', subtarefa:'📌 Subtarefa', fim:'🏁 Fim de expediente',
-  reuniao:'👥 Reunião', ausente:'🚶 Ausente', outro:'✏️ Outro'
+  reuniao:'👥 Reunião', ausente:'🚶 Ausente', grupos:'👥 Em grupos', outro:'✏️ Outro'
 };
+
+// Minutos de AnyDesk aberto a partir dos quais o gestor é avisado (alerta em camadas).
+const ANYDESK_ESCALA_MIN = 15;
 
 function fmtHoras(ms) {
   if (!ms || ms < 0) ms = 0;
@@ -6821,11 +6861,11 @@ async function renderAusencias() {
     const durMs = a => ((a.fim ? new Date(a.fim).getTime() : agora) - new Date(a.inicio).getTime());
 
     // ── Totais de horas por status ──
-    let hOnline = 0, hOcupado = 0, hIndisp = 0, emAberto = 0;
+    let hOnline = 0, hOcupado = 0, hIndisp = 0, hGrupos = 0, emAberto = 0;
     dados.forEach(a => {
       const d = durMs(a);
       const st = a.status || 'indisponivel';
-      if (st === 'online') hOnline += d;
+      if (st === 'online') { hOnline += d; if (a.motivo === 'grupos') hGrupos += d; }
       else if (st === 'ocupado') hOcupado += d;
       else hIndisp += d;
       if (!a.fim) emAberto++;
@@ -6837,6 +6877,7 @@ async function renderAusencias() {
         <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:2px;">${l}</div></div>`;
       cards.innerHTML =
         card(fmtHoras(hOnline),  '🟢 Tempo conectado', 'var(--green)') +
+        card(fmtHoras(hGrupos),  '👥 Em grupos (incluso no online)', '#38bdf8') +
         card(fmtHoras(hOcupado), '🟡 Tempo ocupado',   'var(--orange)') +
         card(fmtHoras(hIndisp),  '🔴 Tempo indisponível','var(--red)') +
         card(dados.length,       'Registros',          'var(--text)') +
@@ -6876,7 +6917,8 @@ async function renderAusencias() {
       return;
     }
     const fmtDH = iso => { const d = new Date(iso); return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); };
-    const badgeStatus = st => {
+    const badgeStatus = (st, motivo) => {
+      if (st === 'online' && motivo === 'grupos') return '<span style="background:rgba(56,189,248,0.15);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);padding:2px 8px;border-radius:6px;font-size:11px;">👥 Em grupos</span>';
       if (st === 'online') return '<span style="background:rgba(34,197,94,0.15);color:var(--green);border:1px solid rgba(34,197,94,0.3);padding:2px 8px;border-radius:6px;font-size:11px;">🟢 Online</span>';
       if (st === 'ocupado') return '<span style="background:rgba(245,158,11,0.15);color:var(--orange);border:1px solid rgba(245,158,11,0.3);padding:2px 8px;border-radius:6px;font-size:11px;">🟡 Ocupado</span>';
       return '<span style="background:rgba(239,68,68,0.12);color:var(--red);border:1px solid rgba(239,68,68,0.3);padding:2px 8px;border-radius:6px;font-size:11px;">🔴 Indisponível</span>';
@@ -6885,11 +6927,13 @@ async function renderAusencias() {
       <thead><tr><th>Colaborador</th><th>Status</th><th>Motivo</th><th>Início</th><th>Fim</th><th>Duração</th></tr></thead>
       <tbody>${dados.map(a => {
         const st = a.status || 'indisponivel';
-        const mot = st === 'online' ? '—' : ((LABEL_MOTIVO_AUS[a.motivo] || a.motivo || '—') + (a.motivo_texto ? `: ${a.motivo_texto}` : ''));
+        const mot = (st === 'online' && a.motivo !== 'grupos')
+          ? '—'
+          : ((LABEL_MOTIVO_AUS[a.motivo] || a.motivo || '—') + (a.motivo_texto ? `: ${a.motivo_texto}` : ''));
         const fim = a.fim ? fmtDH(a.fim) : '<span style="color:var(--accent);">em aberto</span>';
         return `<tr>
           <td style="color:var(--text);font-weight:500;">${nomeDe(a.colaborador_id)}</td>
-          <td>${badgeStatus(st)}</td>
+          <td>${badgeStatus(st, a.motivo)}</td>
           <td style="color:var(--subtle);font-size:12px;">${mot}</td>
           <td style="color:var(--muted);font-size:12px;">${fmtDH(a.inicio)}</td>
           <td style="color:var(--muted);font-size:12px;">${fim}</td>
