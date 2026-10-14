@@ -175,6 +175,46 @@
   .qz-burst{position:absolute;left:50%;top:50%;width:0;height:0;pointer-events:none;z-index:3}
   .qz-burst i{position:absolute;width:12px;height:12px;border-radius:2px;opacity:.95;animation:qzpop .9s ease-out forwards}
   @keyframes qzpop{to{transform:translate(var(--tx),var(--ty)) rotate(var(--rot));opacity:0}}
+  /* ── Quiz ao vivo: lobby / placar no telão ── */
+  .cmp-chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+  .cmp-chip{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:6px 14px;font-size:clamp(13px,1.5vw,18px);font-weight:600;animation:qzin .3s both}
+  .cmp-lead{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:12px 14px;max-width:560px;margin:4px auto 0}
+  .cmp-lead-t{font-size:12px;color:#86efac;text-transform:uppercase;letter-spacing:.6px;font-weight:700;margin-bottom:6px}
+  .cmp-leadrow{display:flex;align-items:center;gap:12px;padding:6px 2px;font-size:clamp(14px,1.6vw,19px)}
+  .cmp-leadrow .pos{width:26px;text-align:center;font-weight:800;color:#9fb6e0}
+  .cmp-leadrow .nm{flex:1;font-weight:600}
+  .cmp-leadrow .pt{font-weight:800;color:#ffd48a}
+  .cmp-pod{display:flex;justify-content:center;align-items:flex-end;gap:14px;margin:18px auto 0}
+  .cmp-pod .col{display:flex;flex-direction:column;align-items:center;gap:6px;width:clamp(90px,12vw,140px)}
+  .cmp-pod .col .nm{font-weight:700;font-size:clamp(13px,1.4vw,17px)}
+  .cmp-pod .bar{width:100%;border-radius:12px 12px 0 0;background:linear-gradient(180deg,#1f6fff,#1552d6);display:flex;align-items:flex-start;justify-content:center;color:#fff;font-weight:800;font-size:clamp(16px,1.8vw,24px);padding-top:10px}
+  /* ── Quiz ao vivo: tela do colaborador (celular) ── */
+  .qzl-wrap{max-width:560px;margin:0 auto}
+  .qzl-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+  .qzl-timer-bar{height:10px;border-radius:999px;background:var(--card2);overflow:hidden;margin:4px 0 16px}
+  .qzl-timer-bar>i{display:block;height:100%;background:linear-gradient(90deg,#1f6fff,#ff8a1e);transition:width .5s linear}
+  .qzl-enun{font-size:clamp(18px,5vw,24px);font-weight:700;line-height:1.25;margin-bottom:16px}
+  .qzl-opts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .qzl-opt{display:flex;align-items:center;gap:10px;border:none;border-radius:14px;padding:16px 14px;font-size:15px;font-weight:600;color:#fff;cursor:pointer;text-align:left;font-family:inherit;min-height:70px;box-shadow:0 6px 16px rgba(0,0,0,.25);transition:transform .1s}
+  .qzl-opt:active{transform:scale(.96)}
+  .qzl-opt:disabled{opacity:.45;cursor:default}
+  .qzl-opt .qzl-sh{font-size:20px;flex-shrink:0}
+  .qzl-opt.cA{background:linear-gradient(135deg,#1f6fff,#1552d6)}
+  .qzl-opt.cB{background:linear-gradient(135deg,#ff9a3d,#f97316)}
+  .qzl-opt.cC{background:linear-gradient(135deg,#14c4b4,#0d9488)}
+  .qzl-opt.cD{background:linear-gradient(135deg,#a78bfa,#7c3aed)}
+  .qzl-opt.cE{background:linear-gradient(135deg,#fb7185,#e11d48)}
+  .qzl-big{text-align:center;padding:30px 18px}
+  .qzl-big .emo{font-size:52px;line-height:1}
+  .qzl-pts{font-size:42px;font-weight:800;font-family:'DM Serif Display',serif;line-height:1}
+  .qzl-rank{display:flex;flex-direction:column;gap:6px;margin-top:16px;text-align:left}
+  .qzl-rankrow{display:flex;align-items:center;gap:10px;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:14px}
+  .qzl-rankrow.me{border-color:var(--accent);background:rgba(37,99,235,.12)}
+  .qzl-rankrow .pos{width:28px;text-align:center;font-weight:800}
+  .ups-msg{font-size:13px;padding:10px 12px;border-radius:9px;margin-top:14px;text-align:center;font-weight:600}
+  .ups-msg.ok{background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.35);color:#4ade80}
+  .ups-msg.err{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#f87171}
+  @media(max-width:420px){ .qzl-opts{grid-template-columns:1fr} }
 </style>
 </head>
 <body>
@@ -316,9 +356,9 @@ document.getElementById('btn-sair').onclick=()=>{ localStorage.removeItem('aval_
 // Navegação
 // ══════════════════════════════════════════════════════════
 const NAV = {
-  colab:  [['minhas','📋 Minhas avaliações'],['desempenho','📈 Meu desempenho']],
-  gestor: [['minhas','📋 Minhas avaliações'],['desempenho','📈 Meu desempenho'],['correcao','✍️ Correção']],
-  super:  [['avaliacoes','🗂️ Avaliações'],['banco','🏦 Banco de questões'],['importar','📥 Importar planilha'],['correcao','✍️ Correção'],['metricas','📊 Métricas'],['quiz','🎮 Quiz']],
+  colab:  [['minhas','📋 Minhas avaliações'],['desempenho','📈 Meu desempenho'],['quizlive','🏆 Quiz ao vivo']],
+  gestor: [['minhas','📋 Minhas avaliações'],['desempenho','📈 Meu desempenho'],['correcao','✍️ Correção'],['quizlive','🏆 Quiz ao vivo']],
+  super:  [['avaliacoes','🗂️ Avaliações'],['banco','🏦 Banco de questões'],['importar','📥 Importar planilha'],['correcao','✍️ Correção'],['metricas','📊 Métricas'],['quiz','🎮 Quiz'],['quizlive','🏆 Quiz ao vivo']],
 };
 let abaAtual=null;
 function renderTabs(){
@@ -330,7 +370,7 @@ function renderTabs(){
 function abrirAba(){
   const v=document.getElementById('view'); v.innerHTML='<div class="spin"></div>';
   ({ minhas:viewMinhas, desempenho:viewDesempenho, avaliacoes:viewAvaliacoes, banco:viewBanco,
-     importar:viewImportar, correcao:viewCorrecao, metricas:viewMetricas, quiz:viewQuiz }[abaAtual] || viewMinhas)();
+     importar:viewImportar, correcao:viewCorrecao, metricas:viewMetricas, quiz:viewQuiz, quizlive:viewQuizLive }[abaAtual] || viewMinhas)();
 }
 function iniciarApp(){
   document.getElementById('login').style.display='none';
@@ -1216,13 +1256,14 @@ async function viewQuiz(){
   try{
     const quizzes=await get('quizzes?select=*&order=created_at.desc');
     v.innerHTML=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-        <div><h2>🎮 Quiz ao vivo</h2><div class="muted">Dinâmica de sexta — monte um quiz com perguntas do banco e apresente na tela da sala.</div></div>
+        <div><h2>🎮 Quiz ao vivo</h2><div class="muted">Monte um quiz com perguntas do banco. <b>📺 Modo telão</b>: só apresenta na sala. <b>🏆 Competição</b>: cada um responde no celular e sai ranking.</div></div>
         <button class="btn primary" onclick="modalQuiz()">➕ Novo quiz</button></div></div>`
       + (quizzes.length? `<div class="grid c2">`+quizzes.map(q=>`<div class="card">
           <h2>${esc(q.titulo)}</h2>
           <div class="muted" style="margin:6px 0">${(q.questao_ids||[]).length} pergunta(s) · ${q.tempo_padrao||20}s por pergunta</div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
-            <button class="btn green sm" onclick="jogarQuiz('${q.id}')">▶️ Apresentar</button>
+            <button class="btn green sm" onclick="jogarQuiz('${q.id}')">📺 Modo telão</button>
+            <button class="btn primary sm" onclick="iniciarCompeticao('${q.id}')">🏆 Competição</button>
             <button class="btn ghost sm" onclick="modalQuiz('${q.id}')">Editar</button>
             <button class="btn ghost sm" onclick="excluirQuiz('${q.id}')">🗑️</button>
           </div></div>`).join('')+`</div>`
@@ -1273,6 +1314,383 @@ async function jogarQuiz(id){
     iniciarApresentacao(q.titulo, ordenadas, q.tempo_padrao||20);
   }catch(e){ toast('Erro ao abrir o quiz: '+e.message,'err'); }
 }
+
+// ══════════════════════════════════════════════════════════
+// QUIZ AO VIVO — MODO COMPETIÇÃO (multiplayer, pontua por velocidade)
+// ══════════════════════════════════════════════════════════
+// Pontuação estilo Kahoot: acerto vale 500..1000 conforme a rapidez; erro = 0.
+function qlCalcPontos(correto, tempoMs, tempoLimiteS){
+  if(!correto) return 0;
+  const lim = Math.max(1, tempoLimiteS) * 1000;
+  const frac = Math.max(0, Math.min(1, 1 - (tempoMs / lim)));
+  return Math.round(500 + 500 * frac);
+}
+// Agrega a pontuação da sala a partir das respostas (fonte de verdade do ranking).
+async function quizAgrega(sessaoId){
+  const [resp, parts] = await Promise.all([
+    get(`quiz_respostas?sessao_id=eq.${sessaoId}&select=colaborador_id,pontos,correto`),
+    get(`quiz_participantes?sessao_id=eq.${sessaoId}&select=colaborador_id,nome`)
+  ]);
+  const map = {};
+  parts.forEach(p => { map[p.colaborador_id] = { id:p.colaborador_id, nome:p.nome||'?', pontos:0, acertos:0 }; });
+  resp.forEach(r => {
+    if(!map[r.colaborador_id]) map[r.colaborador_id] = { id:r.colaborador_id, nome:'?', pontos:0, acertos:0 };
+    map[r.colaborador_id].pontos += (r.pontos||0);
+    if(r.correto) map[r.colaborador_id].acertos++;
+  });
+  return Object.values(map).sort((a,b)=> b.pontos - a.pontos);
+}
+function altsDe(q){ const a=q.alternativas||{}; return Object.keys(a).filter(k=>a[k]); }
+
+// ── APRESENTADOR (telão) ──
+let _cmp=null, _cmpPoll=null, _cmpTick=null;
+async function iniciarCompeticao(quizId){
+  try{
+    const q=(await get(`quizzes?id=eq.${quizId}&select=*&limit=1`))[0];
+    const ids=(q.questao_ids||[]); if(!ids.length){ toast('Quiz sem perguntas.','err'); return; }
+    const qs=await get(`aval_questoes?id=in.(${ids.join(',')})&select=*`);
+    const byId={}; qs.forEach(x=>byId[x.id]=x);
+    const ordenadas=ids.map(i=>byId[i]).filter(Boolean);
+    const sess=(await post('quiz_sessoes', { quiz_id:quizId, titulo:q.titulo, questao_ids:ids, tempo_padrao:q.tempo_padrao||20, status:'lobby', indice:0, criado_por:U.id }))[0];
+    _cmp={ sess, qs:ordenadas, tempo:q.tempo_padrao||20, i:0, phase:'lobby' };
+    const stage=document.getElementById('quiz-stage'); stage.classList.add('on'); stage.classList.remove('reveal');
+    document.addEventListener('keydown', cmpKey);
+    cmpLobby();
+    _cmpPoll=setInterval(cmpPollTick, 1500);
+  }catch(e){ toast('Erro ao criar a sala: '+e.message,'err'); }
+}
+function cmpStopTimers(){ if(_cmpPoll){clearInterval(_cmpPoll);_cmpPoll=null;} if(_cmpTick){clearInterval(_cmpTick);_cmpTick=null;} }
+async function cmpPatch(body){ try{ await patch(`quiz_sessoes?id=eq.${_cmp.sess.id}`, body); }catch(e){} }
+async function cmpPollTick(){
+  if(!_cmp) return;
+  try{
+    if(_cmp.phase==='lobby'){
+      const parts=await get(`quiz_participantes?sessao_id=eq.${_cmp.sess.id}&select=nome&order=entrou_em.asc`);
+      const cnt=document.getElementById('cmp-lcount'); if(cnt) cnt.textContent=parts.length;
+      const chips=document.getElementById('cmp-chips');
+      if(chips) chips.innerHTML = parts.length ? parts.map(p=>`<span class="cmp-chip">${esc(p.nome||'?')}</span>`).join('') : '<span style="color:#7b8aa6">Ninguém entrou ainda…</span>';
+      const bc=document.getElementById('cmp-comecar'); if(bc) bc.disabled = parts.length<1;
+    } else if(_cmp.phase==='questao'){
+      const [resp, parts]=await Promise.all([
+        get(`quiz_respostas?sessao_id=eq.${_cmp.sess.id}&indice=eq.${_cmp.i}&select=colaborador_id`),
+        get(`quiz_participantes?sessao_id=eq.${_cmp.sess.id}&select=colaborador_id`)
+      ]);
+      const el=document.getElementById('cmp-resp'); if(el) el.textContent=`${resp.length}/${parts.length} responderam`;
+    }
+  }catch(e){}
+}
+function cmpLobby(){
+  _cmp.phase='lobby';
+  const stage=document.getElementById('quiz-stage'); stage.classList.remove('reveal');
+  stage.innerHTML=`
+    <div class="qz-top">
+      <span class="qz-brand">${UPLOGO}UpSeller</span>
+      <span class="qz-title">${esc(_cmp.sess.titulo||'Quiz')} · Competição</span>
+      <span class="qz-badge n"><span id="cmp-lcount">0</span> na sala</span>
+      <button class="qz-ico" title="Tela cheia (F)" onclick="qzFull()">⛶</button>
+      <button class="qz-ico" title="Encerrar (Esc)" onclick="cmpSair()">✕</button>
+    </div>
+    <div class="qz-mid"><div class="qz-fit" id="qz-fit" style="text-align:center">
+      <div class="qz-enun" style="margin-bottom:6px">Entrem no celular! 📱</div>
+      <div style="font-size:clamp(15px,2vw,22px);color:#bcd0f5;max-width:900px;margin:0 auto">
+        No app da Rotação → aba <b>🏆 Quiz ao vivo</b> → <b>Entrar</b>. ${(_cmp.qs.length)} pergunta(s), ${_cmp.tempo}s cada. Quem acertar mais rápido pontua mais!
+      </div>
+      <div class="cmp-chips" id="cmp-chips" style="margin:22px auto 0;max-width:1000px"><span style="color:#7b8aa6">Ninguém entrou ainda…</span></div>
+    </div></div>
+    <div class="qz-ctrls">
+      <button class="qz-btn main" id="cmp-comecar" onclick="cmpComecar()" disabled>▶️ Começar (espaço)</button>
+      <button class="qz-btn" onclick="qzFull()">⛶ Tela cheia</button>
+      <button class="qz-btn" onclick="cmpSair()">✕ Encerrar</button>
+    </div>
+    <div class="qz-hint">Quando todos entrarem, clique em Começar · F tela cheia · Esc encerra</div>`;
+  requestAnimationFrame(qzFit);
+  cmpPollTick();
+}
+async function cmpComecar(){ _cmp.i=0; await cmpIrPergunta(); }
+async function cmpIrPergunta(){
+  _cmp.phase='questao';
+  const agora=new Date().toISOString();
+  _cmp.inicio=Date.now();
+  await cmpPatch({ status:'questao', indice:_cmp.i, pergunta_iniciada_em:agora });
+  cmpRenderQuestao();
+}
+function cmpRenderQuestao(){
+  const stage=document.getElementById('quiz-stage'); stage.classList.remove('reveal');
+  const q=_cmp.qs[_cmp.i]; const obj=q.tipo==='objetiva'; const alts=q.alternativas||{};
+  const altsHtml = obj ? `<div class="qz-alts">`+Object.keys(alts).filter(k=>alts[k]).map((k,idx)=>
+      `<div class="qz-alt ${CORES[idx]||'cA'}" data-k="${k}" style="animation-delay:${(.1+idx*.07).toFixed(2)}s"><span class="qz-sh">${FORMAS[idx]||'●'}</span><div class="qz-k">${k}</div><div>${esc(alts[k])}</div></div>`).join('')+`</div>`
+    : `<div class="qz-falada">🗣️ Pergunta falada — sem pontuação automática neste modo.</div>`;
+  stage.innerHTML=`
+    <div class="qz-top">
+      <span class="qz-brand">${UPLOGO}UpSeller</span>
+      <span class="qz-title">${esc(_cmp.sess.titulo||'Quiz')}</span>
+      <span class="qz-badge n">${_cmp.i+1} / ${_cmp.qs.length}</span>
+      <span class="qz-badge" id="cmp-resp">0/0 responderam</span>
+      <button class="qz-ico" onclick="qzFull()">⛶</button>
+      <button class="qz-ico" onclick="cmpSair()">✕</button>
+    </div>
+    <div class="qz-prog"><i style="width:${Math.round((_cmp.i+1)/_cmp.qs.length*100)}%"></i></div>
+    <div class="qz-mid qz-anim"><div class="qz-fit" id="qz-fit">
+      <div class="qz-enun">${esc(q.enunciado)}</div>
+      <div class="qz-timer" style="--p:100"><span class="qz-timenum">${_cmp.tempo}</span></div>
+      ${altsHtml}
+      <div class="qz-expl"><div class="qz-expl-t">Resposta correta</div>
+        ${obj&&q.resposta_correta?`<b>Resposta: ${esc(q.resposta_correta)}</b> — ${esc(alts[q.resposta_correta]||'')}`:''}</div>
+    </div></div>
+    <div class="qz-ctrls">
+      <button class="qz-btn main" onclick="cmpRevelar()">Revelar (espaço)</button>
+      <button class="qz-btn" onclick="cmpSair()">✕ Encerrar</button>
+    </div>
+    <div class="qz-hint">Espaço = revelar · F tela cheia · Esc encerra</div>`;
+  requestAnimationFrame(qzFit);
+  // cronômetro do telão
+  _cmp.remaining=_cmp.tempo;
+  cmpPaintTimer();
+  if(_cmpTick) clearInterval(_cmpTick);
+  _cmpTick=setInterval(()=>{
+    _cmp.remaining--;
+    cmpPaintTimer();
+    if(_cmp.remaining<=0){ clearInterval(_cmpTick); _cmpTick=null; cmpRevelar(); }
+  },1000);
+  cmpPollTick();
+}
+function cmpPaintTimer(){
+  const el=document.querySelector('#quiz-stage .qz-timer'); if(!el) return;
+  const num=el.querySelector('.qz-timenum');
+  const pct=Math.max(0, Math.round(_cmp.remaining/_cmp.tempo*100));
+  el.style.setProperty('--p',pct);
+  if(num) num.textContent=Math.max(0,_cmp.remaining);
+  el.className='qz-timer'+(_cmp.remaining<=3?' crit':(_cmp.remaining<=Math.ceil(_cmp.tempo*0.4)?' warn':''));
+}
+async function cmpRevelar(){
+  if(_cmp.phase==='revelado') return;
+  _cmp.phase='revelado';
+  if(_cmpTick){ clearInterval(_cmpTick); _cmpTick=null; }
+  await cmpPatch({ status:'revelado' });
+  const stage=document.getElementById('quiz-stage'); stage.classList.add('reveal');
+  const q=_cmp.qs[_cmp.i];
+  if(q.tipo==='objetiva' && q.resposta_correta){
+    const el=stage.querySelector(`.qz-alt[data-k="${q.resposta_correta}"]`); if(el) el.classList.add('correct');
+  }
+  // placar parcial (top 5)
+  let rank=[]; try{ rank=await quizAgrega(_cmp.sess.id); }catch(e){}
+  const ehUltima=_cmp.i>=_cmp.qs.length-1;
+  const lead = rank.slice(0,5).map((r,ix)=>`<div class="cmp-leadrow"><span class="pos">${ix+1}</span><span class="nm">${esc(r.nome)}</span><span class="pt">${r.pontos}</span></div>`).join('');
+  const ctr=document.querySelector('#quiz-stage .qz-ctrls');
+  if(ctr) ctr.innerHTML = `<button class="qz-btn main" onclick="cmpProxima()">${ehUltima?'🏆 Ver ranking final':'Próxima ›'} (espaço)</button>
+    <button class="qz-btn" onclick="cmpSair()">✕ Encerrar</button>`;
+  const fit=document.getElementById('qz-fit');
+  if(fit && rank.length){
+    const box=document.createElement('div'); box.className='cmp-lead';
+    box.innerHTML=`<div class="cmp-lead-t">🏅 Parcial</div>${lead}`;
+    fit.appendChild(box);
+  }
+  requestAnimationFrame(qzFit);
+}
+async function cmpProxima(){
+  if(_cmp.i>=_cmp.qs.length-1){ cmpFinal(); return; }
+  _cmp.i++; await cmpIrPergunta();
+}
+async function cmpFinal(){
+  _cmp.phase='final';
+  if(_cmpTick){ clearInterval(_cmpTick); _cmpTick=null; }
+  await cmpPatch({ status:'encerrado' });
+  let rank=[]; try{ rank=await quizAgrega(_cmp.sess.id); }catch(e){}
+  const stage=document.getElementById('quiz-stage'); stage.classList.remove('reveal');
+  const pod=rank.slice(0,3);
+  const alturas=['160px','120px','96px']; const medal=['🥇','🥈','🥉']; const ord=[1,0,2]; // 2º,1º,3º
+  const podHtml = `<div class="cmp-pod">`+ord.filter(ix=>pod[ix]).map(ix=>`
+      <div class="col"><div style="font-size:30px">${medal[ix]}</div>
+        <div class="nm">${esc(pod[ix].nome)}</div>
+        <div class="bar" style="height:${alturas[ix]}">${pod[ix].pontos}</div>
+        <div style="font-size:12px;color:#9fb6e0">${ix+1}º</div></div>`).join('')+`</div>`;
+  const resto = rank.slice(3).map((r,ix)=>`<div class="cmp-leadrow"><span class="pos">${ix+4}</span><span class="nm">${esc(r.nome)}</span><span class="pt">${r.pontos} · ${r.acertos} ✓</span></div>`).join('');
+  stage.innerHTML=`
+    <div class="qz-top">
+      <span class="qz-brand">${UPLOGO}UpSeller</span>
+      <span class="qz-title">${esc(_cmp.sess.titulo||'Quiz')} · Resultado</span>
+      <button class="qz-ico" onclick="qzFull()">⛶</button>
+      <button class="qz-ico" onclick="cmpSair()">✕</button>
+    </div>
+    <div class="qz-mid"><div class="qz-fit" id="qz-fit" style="text-align:center">
+      <div class="qz-enun" style="margin-bottom:4px">🏆 Ranking final</div>
+      ${rank.length?podHtml:'<div style="color:#9fb6e0">Ninguém pontuou.</div>'}
+      <div class="cmp-lead" style="max-width:640px;margin:8px auto 0">${resto}</div>
+    </div></div>
+    <div class="qz-ctrls"><button class="qz-btn main" onclick="cmpSair()">Fechar</button></div>
+    <div class="qz-hint">Boa, pessoal! 🎉</div>`;
+  requestAnimationFrame(qzFit);
+}
+function cmpSair(){
+  cmpStopTimers();
+  if(_cmp){ cmpPatch({ status:'encerrado' }); }
+  document.removeEventListener('keydown', cmpKey);
+  const s=document.getElementById('quiz-stage'); s.classList.remove('on','reveal'); s.innerHTML=''; _cmp=null;
+}
+function cmpKey(e){
+  if(!_cmp) return;
+  if(e.key===' '||e.key==='Enter'){ e.preventDefault();
+    if(_cmp.phase==='lobby'){ const b=document.getElementById('cmp-comecar'); if(b && !b.disabled) cmpComecar(); }
+    else if(_cmp.phase==='questao') cmpRevelar();
+    else if(_cmp.phase==='revelado') cmpProxima();
+  } else if(e.key==='f'||e.key==='F'){ qzFull(); }
+  else if(e.key==='Escape'){ cmpSair(); }
+}
+
+// ── COLABORADOR (celular) ──
+let _ql=null, _qlPoll=null, _qlTick=null;
+async function viewQuizLive(){
+  qlStop(); // garante que não fica polling de uma sessão anterior
+  const v=document.getElementById('view'); v.innerHTML='<div class="spin"></div>';
+  try{
+    const sess=await get(`quiz_sessoes?status=in.(lobby,questao,revelado)&select=*&order=created_at.desc&limit=6`);
+    if(!sess.length){
+      v.innerHTML=`<div class="card center muted" style="padding:44px 20px">
+        <div style="font-size:42px">🏁</div>
+        <div style="margin-top:10px">Nenhum quiz ao vivo agora.<br>Quando o gestor abrir uma sala, ela aparece aqui.</div>
+        <button class="btn ghost sm" style="margin-top:16px" onclick="viewQuizLive()">🔄 Atualizar</button></div>`;
+      return;
+    }
+    v.innerHTML=`<div class="card"><h2>🏆 Quiz ao vivo</h2><div class="muted">Entre na sala para jogar. Responda rápido pra pontuar mais!</div></div>`
+      + `<div class="grid c2">`+sess.map(s=>`<div class="card">
+          <h2>${esc(s.titulo||'Quiz')}</h2>
+          <div class="muted" style="margin:6px 0">${(s.questao_ids||[]).length} pergunta(s) · ${({lobby:'⏳ aguardando início',questao:'🔵 em andamento',revelado:'🔵 em andamento'}[s.status]||s.status)}</div>
+          <button class="btn primary" onclick="qlEntrar('${s.id}')">Entrar</button></div>`).join('')+`</div>`;
+  }catch(e){ v.innerHTML=`<div class="card" style="color:var(--red)">Erro: ${esc(e.message)}. O gestor rodou o SQL_quiz_live.sql?</div>`; }
+}
+async function qlEntrar(sessaoId){
+  try{
+    const s=(await get(`quiz_sessoes?id=eq.${sessaoId}&select=*&limit=1`))[0];
+    if(!s || s.status==='encerrado'){ toast('Essa sala já encerrou.','err'); viewQuizLive(); return; }
+    try{ await post('quiz_participantes', { sessao_id:sessaoId, colaborador_id:U.id, nome:(U.apelido||U.nome) }); }catch(e){ /* já estava na sala */ }
+    const ids=(s.questao_ids||[]);
+    const qs=ids.length?await get(`aval_questoes?id=in.(${ids.join(',')})&select=*`):[];
+    const byId={}; qs.forEach(x=>byId[x.id]=x);
+    _ql={ sessaoId, s, qs:ids.map(i=>byId[i]).filter(Boolean), lastIndice:-1, answered:false, locked:false };
+    _qlPoll=setInterval(qlPoll, 1000); qlPoll();
+  }catch(e){ toast('Erro ao entrar: '+e.message,'err'); }
+}
+function qlStop(){ if(_qlPoll){clearInterval(_qlPoll);_qlPoll=null;} if(_qlTick){clearInterval(_qlTick);_qlTick=null;} _ql=null; }
+function qlStopTick(){ if(_qlTick){clearInterval(_qlTick);_qlTick=null;} }
+async function qlPoll(){
+  if(!_ql) return;
+  if(abaAtual!=='quizlive'){ qlStop(); return; } // saiu da aba → para
+  let s; try{ s=(await get(`quiz_sessoes?id=eq.${_ql.sessaoId}&select=status,indice,pergunta_iniciada_em&limit=1`))[0]; }catch(e){ return; }
+  if(!s) return;
+  _ql.s.status=s.status; _ql.s.indice=s.indice; _ql.s.pergunta_iniciada_em=s.pergunta_iniciada_em;
+  if(s.status==='lobby'){ if(_ql.lastIndice!==-2){ _ql.lastIndice=-2; qlRenderLobby(); } return; }
+  if(s.status==='encerrado'){ qlStopTick(); qlRenderFinal(); return; }
+  if(s.status==='questao'){
+    if(_ql.lastIndice!==s.indice){ _ql.lastIndice=s.indice; _ql.answered=false; _ql.locked=false; qlRenderQuestao(); }
+    return;
+  }
+  if(s.status==='revelado'){ qlStopTick(); qlRenderRevelado(); return; }
+}
+function qlRenderLobby(){
+  document.getElementById('view').innerHTML=`<div class="qzl-wrap"><div class="card qzl-big">
+    <div class="emo">✅</div>
+    <div style="font-size:20px;font-weight:700;margin-top:8px">Você está na sala!</div>
+    <div class="muted" style="margin-top:6px">Aguarde o início… deixe esta tela aberta. 📱</div>
+    <div class="spin" style="margin-top:18px"></div>
+    <button class="btn ghost sm" style="margin-top:18px" onclick="qlSair()">Sair da sala</button>
+  </div></div>`;
+}
+function qlRenderQuestao(){
+  const q=_ql.qs[_ql.s.indice]; if(!q){ return; }
+  const obj=q.tipo==='objetiva'; const alts=q.alternativas||{};
+  const inicio=_ql.s.pergunta_iniciada_em ? new Date(_ql.s.pergunta_iniciada_em).getTime() : Date.now();
+  _ql.inicio=inicio;
+  const optsHtml = obj ? Object.keys(alts).filter(k=>alts[k]).map((k,idx)=>
+      `<button class="qzl-opt ${CORES[idx]||'cA'}" onclick="qlResponder('${k}')"><span class="qzl-sh">${FORMAS[idx]||'●'}</span><span>${esc(alts[k])}</span></button>`).join('')
+    : `<div class="card center muted">🗣️ Pergunta falada — responda em voz alta na sala.</div>`;
+  document.getElementById('view').innerHTML=`<div class="qzl-wrap">
+    <div class="qzl-head"><span style="background:rgba(37,99,235,.18);color:#60a5fa;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600">Pergunta ${_ql.s.indice+1}/${_ql.qs.length}</span>
+      <span id="qzl-cron" style="font-weight:700;font-size:16px">—</span></div>
+    <div class="qzl-timer-bar"><i id="qzl-bar" style="width:100%"></i></div>
+    <div class="qzl-enun">${esc(q.enunciado)}</div>
+    <div class="qzl-opts" id="qzl-opts">${optsHtml}</div>
+    <div class="ups-msg" id="qzl-msg" style="display:none"></div>
+  </div>`;
+  qlStopTick();
+  const tempoLimite=(_ql.s.tempo_padrao||20);
+  qlTickQuestao(tempoLimite);
+  _qlTick=setInterval(()=>qlTickQuestao(tempoLimite), 500);
+}
+function qlTickQuestao(tempoLimite){
+  const el=document.getElementById('qzl-cron'); const bar=document.getElementById('qzl-bar');
+  if(!el){ qlStopTick(); return; }
+  const elapsed=(Date.now()-_ql.inicio)/1000;
+  const rem=Math.max(0, tempoLimite-elapsed);
+  el.textContent=Math.ceil(rem)+'s';
+  if(bar) bar.style.width=Math.max(0,Math.min(100,(rem/tempoLimite*100)))+'%';
+  if(rem<=0 && !_ql.answered && !_ql.locked){
+    _ql.locked=true; qlStopTick();
+    qlRegistrar(null,false,Math.round(elapsed*1000),0);
+    qlFeedback('⏱️ Tempo esgotado! Aguarde o resultado.', 'err');
+    document.querySelectorAll('#qzl-opts .qzl-opt').forEach(b=>b.disabled=true);
+  }
+}
+async function qlResponder(k){
+  if(_ql.answered || _ql.locked) return;
+  _ql.answered=true;
+  const q=_ql.qs[_ql.s.indice];
+  const tempoLimite=(_ql.s.tempo_padrao||20);
+  const tempoMs=Math.max(0, Date.now()-_ql.inicio);
+  const correto = (q.resposta_correta||'')===k;
+  const pontos = qlCalcPontos(correto, tempoMs, tempoLimite);
+  document.querySelectorAll('#qzl-opts .qzl-opt').forEach(b=>b.disabled=true);
+  qlStopTick();
+  await qlRegistrar(k, correto, tempoMs, pontos);
+  qlFeedback('✅ Resposta enviada! Aguarde o resultado…', 'ok');
+}
+async function qlRegistrar(alt, correto, tempoMs, pontos){
+  try{
+    await post('quiz_respostas', { sessao_id:_ql.sessaoId, pergunta_id:(_ql.qs[_ql.s.indice]||{}).id, indice:_ql.s.indice, colaborador_id:U.id, alternativa:alt, correto, tempo_ms:tempoMs, pontos });
+  }catch(e){ /* conflito = já respondeu */ }
+}
+function qlFeedback(msg, kind){
+  const m=document.getElementById('qzl-msg');
+  if(m){ m.className='ups-msg '+(kind||''); m.style.display='block'; m.textContent=msg; }
+}
+async function qlRenderRevelado(){
+  const q=_ql.qs[_ql.s.indice]||{};
+  let minha=null, rank=[];
+  try{
+    const [r, rk]=await Promise.all([
+      get(`quiz_respostas?sessao_id=eq.${_ql.sessaoId}&indice=eq.${_ql.s.indice}&colaborador_id=eq.${U.id}&select=correto,pontos&limit=1`),
+      quizAgrega(_ql.sessaoId)
+    ]);
+    minha=r[0]; rank=rk;
+  }catch(e){}
+  const pos=rank.findIndex(x=>x.id===U.id); const meu=rank[pos]||{pontos:0};
+  const acertou=minha&&minha.correto;
+  document.getElementById('view').innerHTML=`<div class="qzl-wrap"><div class="card qzl-big">
+    <div class="emo">${acertou?'🎉':'😕'}</div>
+    <div style="font-size:22px;font-weight:800;margin-top:6px">${acertou?'Acertou!':'Dessa vez não…'}</div>
+    <div class="muted" style="margin-top:4px">Resposta certa: <b>${esc(q.resposta_correta||'—')}</b>${q.alternativas&&q.resposta_correta?` — ${esc(q.alternativas[q.resposta_correta]||'')}`:''}</div>
+    <div class="qzl-pts" style="margin-top:14px;color:${acertou?'var(--green)':'var(--muted)'}">+${minha?minha.pontos:0}</div>
+    <div class="muted">pontos nesta pergunta</div>
+    <div style="margin-top:16px;font-size:15px">Você está em <b style="color:var(--accent)">${pos>=0?(pos+1)+'º':'—'}</b> · ${meu.pontos} pts no total</div>
+    <div class="muted" style="margin-top:14px">Aguarde a próxima… 📱</div>
+  </div></div>`;
+}
+async function qlRenderFinal(){
+  let rank=[]; try{ rank=await quizAgrega(_ql.sessaoId); }catch(e){}
+  const pos=rank.findIndex(x=>x.id===U.id); const meu=rank[pos]||{pontos:0,acertos:0};
+  const top=rank.slice(0,10).map((r,ix)=>`<div class="qzl-rankrow ${r.id===U.id?'me':''}"><span class="pos">${['🥇','🥈','🥉'][ix]||(ix+1)}</span><span style="flex:1">${esc(r.nome)}</span><span style="font-weight:700">${r.pontos}</span></div>`).join('');
+  document.getElementById('view').innerHTML=`<div class="qzl-wrap"><div class="card qzl-big">
+    <div class="emo">🏆</div>
+    <div style="font-size:22px;font-weight:800;margin-top:4px">Fim do quiz!</div>
+    <div style="margin-top:8px;font-size:16px">Você ficou em <b style="color:var(--accent)">${pos>=0?(pos+1)+'º lugar':'—'}</b></div>
+    <div class="qzl-pts" style="margin-top:6px;color:var(--accent)">${meu.pontos}</div>
+    <div class="muted">pontos · ${meu.acertos} acerto(s)</div>
+    <div class="qzl-rank">${top||'<div class="muted">Sem pontuação.</div>'}</div>
+    <button class="btn ghost sm" style="margin-top:16px" onclick="qlSair()">Voltar</button>
+  </div></div>`;
+  // encerra o polling (já acabou)
+  if(_qlPoll){ clearInterval(_qlPoll); _qlPoll=null; }
+}
+function qlSair(){ qlStop(); viewQuizLive(); }
 
 // ── Apresentação (tela cheia) ──
 const CORES=['cA','cB','cC','cD','cE'];
