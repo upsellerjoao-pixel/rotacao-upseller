@@ -1423,6 +1423,9 @@
             <div class="admin-section-sub">Tempo conectado, ocupado e indisponível de cada colaborador, com motivos e duração.</div>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <select id="aus-filtro-grupo" onchange="renderAusencias()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;">
+              <option value="">Todos os grupos</option>
+            </select>
             <select id="aus-filtro-colab" onchange="renderAusencias()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;">
               <option value="">Todos os colaboradores</option>
             </select>
@@ -1554,12 +1557,19 @@
       </div>
       <div class="field"><label>Data de início na empresa</label><input type="date" id="colab-data-inicio"></div>
     </div>
-    <div class="field">
-      <label>Horário de almoço</label>
-      <select id="colab-almoco" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;margin-bottom:16px;">
-        <option value="12">11h45–12h45</option>
-        <option value="13">12h45–13h45</option>
-      </select>
+    <div class="modal-2col">
+      <div class="field">
+        <label>Horário de almoço</label>
+        <select id="colab-almoco" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;">
+          <option value="12">11h45–12h45</option>
+          <option value="13">12h45–13h45</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Grupo / Equipe <span style="color:var(--muted);text-transform:none;letter-spacing:0;font-weight:400;">(filtro em Ausências)</span></label>
+        <input type="text" id="colab-grupo" list="grupos-list" placeholder="Ex: Grupo 1, Equipe A…" autocomplete="off">
+        <datalist id="grupos-list"></datalist>
+      </div>
     </div>
     <div class="field">
       <label>ID no SalesSmartly <span style="color:var(--muted);text-transform:none;letter-spacing:0;font-weight:400;">(para a extensão atribuir grupos)</span></label>
@@ -1830,22 +1840,32 @@ function alternarTema() {
 // aplica assim que o script carrega
 aplicarTemaSalvo();
 
-async function sbFetch(path) {
-  const r = await fetch(`${SB_URL}/rest/v1/${path}`, { headers: hdrs(false) });
-  if (!r.ok) throw new Error(`${r.status}`);
-  return r.json();
+// Timeout evita que uma requisição lenta/presa deixe a tela "Carregando..."
+// para sempre: após o limite, aborta e o erro sobe para o try/catch da tela.
+async function sbFetch(path, timeoutMs) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs || 20000);
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/${path}`, { headers: hdrs(false), signal: ctrl.signal });
+    if (!r.ok) throw new Error(`${r.status}`);
+    return await r.json();
+  } finally { clearTimeout(t); }
 }
 
 // sbFetchSvc: igual ao sbFetch mas usa service role key.
 // Necessário pra ler tabelas/views com RLS ativo (ex: v_situacao_hoje
 // que consulta a tabela `escalas` que tem RLS).
-async function sbFetchSvc(path) {
+async function sbFetchSvc(path, timeoutMs) {
   const headers = SB_KEY_SVC
     ? { 'apikey': SB_KEY_SVC, 'Authorization': `Bearer ${SB_KEY_SVC}` }
     : hdrs(false);
-  const r = await fetch(`${SB_URL}/rest/v1/${path}`, { headers });
-  if (!r.ok) throw new Error(`${r.status}`);
-  return r.json();
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs || 20000);
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/${path}`, { headers, signal: ctrl.signal });
+    if (!r.ok) throw new Error(`${r.status}`);
+    return await r.json();
+  } finally { clearTimeout(t); }
 }
 
 async function sbPatch(table, filter, body) {
@@ -4549,7 +4569,7 @@ async function renderAdminColabs() {
   const el = document.getElementById('admin-colab-list');
   el.innerHTML = '<div class="loading"><div class="spinner"></div> Carregando...</div>';
   try {
-    colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido,email,data_inicio,is_gestor,is_super_gestor,atendente_pleno,permissoes_gestor,ativo,faz_atendimento,faz_aulao,disponivel_hoje,periodo_almoco,id_salessmartly&order=nome.asc');
+    colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido,email,data_inicio,is_gestor,is_super_gestor,atendente_pleno,permissoes_gestor,ativo,faz_atendimento,faz_aulao,disponivel_hoje,periodo_almoco,id_salessmartly,grupo&order=nome.asc');
     if (!colabsAdmin.length) { el.innerHTML = '<div class="error-msg">Nenhum colaborador.</div>'; return; }
     el.innerHTML = `<table class="admin-table">
       <thead><tr><th>Nome</th><th>E-mail</th><th>Início</th><th>Status</th><th>Almoço</th><th>ID Sales</th><th>Gestor</th><th>Ativo</th><th></th></tr></thead>
@@ -4609,6 +4629,14 @@ function setFlagsFromNivelAcesso(nivel) {
   }
 }
 
+// Preenche as sugestões de grupo (datalist) com os grupos já existentes.
+function preencherDatalistGrupos() {
+  const dl = document.getElementById('grupos-list');
+  if (!dl) return;
+  const grupos = [...new Set((colabsAdmin || []).map(c => (c.grupo || '').trim()).filter(Boolean))].sort();
+  dl.innerHTML = grupos.map(g => `<option value="${g}"></option>`).join('');
+}
+
 function abrirModalColab(id) {
   document.getElementById('colab-edit-id').value = '';
   document.getElementById('colab-nome').value = '';
@@ -4619,6 +4647,8 @@ function abrirModalColab(id) {
   document.getElementById('btn-toggle-senha').textContent = '👁';
   document.getElementById('colab-data-inicio').value = '';
   document.getElementById('colab-almoco').value = '13';
+  document.getElementById('colab-grupo').value = '';
+  preencherDatalistGrupos();
   document.getElementById('colab-id-sales').value = '';
   document.getElementById('colab-nivel-acesso').value = 'atendente';
   document.getElementById('colab-ativo').checked = true;
@@ -4644,6 +4674,8 @@ function editarColab(id) {
   document.getElementById('btn-toggle-senha').textContent = '👁';
   document.getElementById('colab-data-inicio').value = c.data_inicio || '';
   document.getElementById('colab-almoco').value = c.periodo_almoco || '13';
+  document.getElementById('colab-grupo').value = c.grupo || '';
+  preencherDatalistGrupos();
   document.getElementById('colab-id-sales').value = c.id_salessmartly || '';
   document.getElementById('colab-nivel-acesso').value = getNivelAcessoFromFlags(c);
   document.getElementById('colab-ativo').checked = c.ativo !== false;
@@ -4687,6 +4719,7 @@ async function salvarColab() {
   const ativo = document.getElementById('colab-ativo').checked;
   const fazAtend = document.getElementById('colab-faz-atend').checked;
   const fazAulao = document.getElementById('colab-faz-aulao').checked;
+  const grupo = (document.getElementById('colab-grupo')?.value || '').trim();
 
   if (!nome || !email) { alert('Preencha nome e e-mail.'); return; }
 
@@ -4701,7 +4734,8 @@ async function salvarColab() {
     faz_aulao: fazAulao,
     data_inicio: dataInicio || null,
     periodo_almoco: almoco,
-    id_salessmartly: idSales || null
+    id_salessmartly: idSales || null,
+    grupo: grupo || null
   };
   if (senha) body.senha = senha;
 
@@ -4729,7 +4763,7 @@ async function salvarColab() {
   if (ok) {
     fecharModal('colab-modal');
     showToast(id ? 'Colaborador atualizado!' : 'Colaborador criado!');
-    colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido,email,data_inicio,is_gestor,is_super_gestor,atendente_pleno,permissoes_gestor,ativo,faz_atendimento,faz_aulao,periodo_almoco,id_salessmartly&order=nome.asc').catch(() => colabsAdmin);
+    colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido,email,data_inicio,is_gestor,is_super_gestor,atendente_pleno,permissoes_gestor,ativo,faz_atendimento,faz_aulao,periodo_almoco,id_salessmartly,grupo&order=nome.asc').catch(() => colabsAdmin);
     await renderAdminColabs();
     colaboradores = await sbFetchSvc('v_situacao_hoje').catch(() => colaboradores);
     renderDisponibilidade();
@@ -6826,13 +6860,22 @@ async function renderAusencias() {
     const selColab = document.getElementById('aus-filtro-colab');
     if (selColab && selColab.options.length <= 1) {
       if (!colabsAdmin.length) {
-        colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido&order=nome.asc').catch(() => []);
+        colabsAdmin = await sbFetch('colaboradores?select=id,nome,apelido,grupo&order=nome.asc').catch(() => []);
       }
       colabsAdmin.forEach(c => {
         const o = document.createElement('option');
         o.value = c.id; o.textContent = c.apelido || c.nome;
         selColab.appendChild(o);
       });
+    }
+
+    // Filtro de grupo (refaz a cada render, preservando a seleção atual)
+    const selGrupo = document.getElementById('aus-filtro-grupo');
+    if (selGrupo) {
+      const grupos = [...new Set((colabsAdmin || []).map(c => (c.grupo || '').trim()).filter(Boolean))].sort();
+      const sel = selGrupo.value;
+      selGrupo.innerHTML = '<option value="">Todos os grupos</option>' + grupos.map(g => `<option value="${g}">👥 ${g}</option>`).join('');
+      if (grupos.includes(sel)) selGrupo.value = sel;
     }
 
     // Filtro de período
@@ -6845,14 +6888,18 @@ async function renderAusencias() {
       filtroData = `&inicio=gte.${d.toISOString()}`;
     }
 
-    // Lê a linha do tempo de status
-    const rows = await sbFetchSvc(`historico_status?select=id,colaborador_id,status,motivo,motivo_texto,inicio,fim&order=inicio.desc${filtroData}&limit=3000`).catch(() => []);
+    // Lê a linha do tempo de status (sem .catch: se falhar/demorar, cai no
+    // catch da tela e mostra o erro em vez de ficar carregando pra sempre)
+    const rows = await sbFetchSvc(`historico_status?select=id,colaborador_id,status,motivo,motivo_texto,inicio,fim&order=inicio.desc${filtroData}&limit=3000`, 15000);
     ausenciasCache = rows || [];
 
-    // Filtros locais (colaborador + tipo/status)
+    // Filtros locais (grupo + colaborador + tipo/status)
     const fColab = document.getElementById('aus-filtro-colab')?.value || '';
     const fTipo  = document.getElementById('aus-filtro-tipo')?.value || '';
+    const fGrupo = document.getElementById('aus-filtro-grupo')?.value || '';
+    const grupoDe = {}; (colabsAdmin || []).forEach(c => { grupoDe[c.id] = (c.grupo || '').trim(); });
     let dados = ausenciasCache;
+    if (fGrupo) dados = dados.filter(a => grupoDe[a.colaborador_id] === fGrupo);
     if (fColab) dados = dados.filter(a => a.colaborador_id === fColab);
     if (fTipo)  dados = dados.filter(a => (a.status || 'indisponivel') === fTipo);
 
@@ -6942,7 +6989,11 @@ async function renderAusencias() {
       }).join('')}</tbody></table>`;
   } catch(e) {
     // Nunca deixa a tela presa em "Carregando"
-    lista.innerHTML = `<div class="error-msg">Erro ao carregar: ${e.message}</div>`;
+    const msg = (e && e.name === 'AbortError')
+      ? 'a consulta demorou demais (tempo esgotado). Rode o SQL_ausencias_grupo.sql no Supabase para criar os índices e acelerar.'
+      : (e.message || 'falha de rede');
+    lista.innerHTML = `<div class="error-msg" style="padding:16px;border-radius:10px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#f87171;">Erro ao carregar: ${msg}
+      <div style="margin-top:10px;"><button onclick="renderAusencias()" style="background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:6px 12px;cursor:pointer;font-size:12px;">🔄 Tentar de novo</button></div></div>`;
   }
 }
 
@@ -7694,7 +7745,7 @@ function iniciarPollingNotif() {
 
 function preCarregarAdmin() {
   if (!currentColaborador?.is_gestor) return;
-  sbFetch('colaboradores?select=id,nome,apelido,email,data_inicio,is_gestor,is_super_gestor,atendente_pleno,permissoes_gestor,ativo,faz_atendimento,faz_aulao,periodo_almoco,id_salessmartly&order=nome.asc')
+  sbFetch('colaboradores?select=id,nome,apelido,email,data_inicio,is_gestor,is_super_gestor,atendente_pleno,permissoes_gestor,ativo,faz_atendimento,faz_aulao,periodo_almoco,id_salessmartly,grupo&order=nome.asc')
     .then(data => { colabsAdmin = data; })
     .catch(() => {});
 }
